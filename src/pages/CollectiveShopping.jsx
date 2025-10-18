@@ -1,93 +1,60 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs, setDoc } from 'firebase/firestore';
-import { 
-  Users,
-  AlertCircle,
-  Package
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore'
+import { AlertCircle } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
 
-export default function CollectiveShopping() {
-  const { currentUser } = useAuth();
-  const [myProducts, setMyProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [demoOffers, setDemoOffers] = useState([]);
+export default function CollectiveShopping () {
+  const { currentUser } = useAuth()
+  const [myProducts, setMyProducts] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     // Get user's products to find low stock items
     const productsQuery = query(
       collection(db, 'products'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
       try {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        }))
         
         // Filter low stock products (stok <= 5)
-        const lowStockProducts = productsData.filter(product => (product.stok || 0) <= 5);
-        setMyProducts(lowStockProducts);
-        
-        // Generate demo offers based on user's low stock products
-        generateDemoOffers(lowStockProducts);
-        setLoading(false);
+        const lowStockProducts = productsData.filter(product => (product.stok || 0) <= 5)
+        setMyProducts(lowStockProducts)
+        setLoading(false)
       } catch (error) {
-        console.error('Error processing products data:', error);
-        setMyProducts([]);
-        setLoading(false);
+        console.error('Error processing products data:', error)
+        setMyProducts([])
+        setLoading(false)
       }
     }, (error) => {
-      console.error('Error fetching products for collective shopping:', error);
-      setMyProducts([]);
-      setLoading(false);
+      console.error('Error fetching products for collective shopping:', error)
+      setMyProducts([])
+      setLoading(false)
       
       if (error.code === 'permission-denied') {
-        console.log('Permission denied for products collection in collective shopping');
+        console.log('Permission denied for products collection in collective shopping')
       }
-    });
+    })
 
-    return unsubscribe;
-  }, [currentUser]);
-
-  const generateDemoOffers = (lowStockProducts) => {
-    // Generate demo collective shopping offers based on low stock products
-    const offers = lowStockProducts.map(product => {
-      const interestedMerchants = Math.floor(Math.random() * 36) + 15; // 15-50 merchants
-      const discountPercentage = Math.floor(Math.random() * 21) + 10; // 10-30% discount
-      const originalPrice = product.harga || 0;
-      const discountedPrice = Math.floor(originalPrice * (100 - discountPercentage) / 100);
-      
-      return {
-        id: `offer-${product.id}`,
-        productId: product.id,
-        productName: product.nama,
-        currentStock: product.stok,
-        interestedMerchants,
-        originalPrice,
-        discountedPrice,
-        discountPercentage,
-        minOrder: Math.floor(Math.random() * 5) + 5, // 5-10 minimum order
-        timeLeft: Math.floor(Math.random() * 12) + 6, // 6-18 hours left
-        category: product.kategori || 'Umum',
-        unit: product.satuan || 'pcs'
-      };
-    });
-    
-    setDemoOffers(offers);
-  };
+    return unsubscribe
+  }, [currentUser])
+  const { showSuccess, showError } = useToast()
 
   // Integrated collective shopping function (replaces old store-based approach)
-  const handleCollectiveShoppingJoin = async (offer) => {
+  const _handleCollectiveShoppingJoin = async (offer) => {
     try {
-      const savings = offer.originalPrice - offer.discountedPrice;
-      const orderQuantity = Math.max(offer.minOrder, Math.ceil(offer.currentStock / 2)); // Smart quantity suggestion
+      const savings = offer.originalPrice - offer.discountedPrice
+      const orderQuantity = Math.max(offer.minOrder, Math.ceil(offer.currentStock / 2)) // Smart quantity suggestion
       
       // Simulate collective order processing
       const orderData = {
@@ -101,7 +68,7 @@ export default function CollectiveShopping() {
         unit: offer.unit,
         merchantsJoined: offer.interestedMerchants + 1, // +1 for current user
         orderType: 'collective_purchase'
-      };
+      }
 
       // Process inventory restock
       await processInventoryRestock({
@@ -109,7 +76,7 @@ export default function CollectiveShopping() {
         quantity: orderQuantity,
         bulkPrice: offer.discountedPrice,
         category: offer.category
-      });
+      })
 
       // Add transaction record
       await addDoc(collection(db, 'transactions'), {
@@ -131,34 +98,20 @@ export default function CollectiveShopping() {
           discountPercentage: offer.discountPercentage,
           totalSavings: orderData.savings
         }
-      });
+      })
 
       // Success message
-      alert(`✅ Belanja Kolektif Berhasil!\n\n` +
-        `🛒 Produk: ${offer.productName}\n` +
-        `📦 Quantity: ${orderQuantity} ${offer.unit}\n` +
-        `💰 Total: Rp ${orderData.totalPrice.toLocaleString('id-ID')}\n` +
-        `💸 Hemat: Rp ${orderData.savings.toLocaleString('id-ID')} (${offer.discountPercentage}%)\n` +
-        `👥 Bergabung dengan ${orderData.merchantsJoined} pedagang lain\n\n` +
-        `📈 Stok produk telah ditambahkan ke inventory Anda!`);
-
-      // Refresh demo offers after successful purchase
-      const updatedProducts = myProducts.map(p => 
-        p.id === offer.productId 
-          ? { ...p, stok: p.stok + orderQuantity }
-          : p
-      );
-      setMyProducts(updatedProducts);
-      generateDemoOffers(updatedProducts);
+      showSuccess(`Belanja Kolektif Berhasil! ${offer.productName} • Qty ${orderQuantity} • Hemat Rp ${orderData.savings.toLocaleString('id-ID')}`)
 
     } catch (error) {
-      console.error('Error processing collective shopping:', error);
-      alert('❌ Gagal memproses belanja kolektif. Silakan coba lagi.');
+      console.error('Error processing collective shopping:', error)
+      alert('❌ Gagal memproses belanja kolektif. Silakan coba lagi.')
+  showError('Gagal memproses belanja kolektif. Silakan coba lagi.')
     }
-  };
+  }
 
 
-  const handleConfirmCollectiveOrder = async (orderData) => {
+  const _handleConfirmCollectiveOrder = async (orderData) => {
     try {
       // 1. Save collective order to Firebase
       const orderRef = await addDoc(collection(db, 'collectiveOrders'), {
@@ -166,15 +119,15 @@ export default function CollectiveShopping() {
         userId: currentUser.uid,
         userEmail: currentUser.email,
         createdAt: serverTimestamp(),
-        status: 'confirmed' // Langsung confirmed untuk demo
-      });
+        status: 'confirmed'
+      })
 
       // 2. Process inventory restocking for each item
       const restockPromises = orderData.items.map(async (item) => {
-        await processInventoryRestock(item);
-      });
+        await processInventoryRestock(item)
+      })
 
-      await Promise.all(restockPromises);
+      await Promise.all(restockPromises)
 
       // 3. Add transaction record for collective purchase
       await addDoc(collection(db, 'transactions'), {
@@ -191,25 +144,19 @@ export default function CollectiveShopping() {
         supplier: orderData.storeName,
         timestamp: serverTimestamp(),
         collectiveOrderId: orderRef.id
-      });
+      })
 
       // Show success message
-      alert(`✅ Belanja Kolektif Berhasil!\n\n🏪 Toko: ${orderData.storeName}\n💰 Total: Rp ${orderData.totalAmount.toLocaleString('id-ID')}\n💸 Penghematan: Rp ${orderData.totalSavings.toLocaleString('id-ID')}\n\n📦 Stok produk telah ditambahkan ke inventory Anda!\n🧾 Transaksi tercatat dalam riwayat pembelian.`);
+  showSuccess(`Belanja Kolektif Berhasil! ${orderData.storeName} • Total Rp ${orderData.totalAmount.toLocaleString('id-ID')}`)
+  showError('Gagal memproses belanja kolektif. Silakan coba lagi.')
 
-      // Reset selected products for this store
-      const newSelectedProducts = { ...selectedProducts };
-      Object.keys(newSelectedProducts).forEach(key => {
-        if (key.startsWith(orderData.storeId)) {
-          delete newSelectedProducts[key];
-        }
-      });
-      setSelectedProducts(newSelectedProducts);
+      // (selectedProducts state not managed in this component) - no-op
 
     } catch (error) {
-      console.error('Error creating collective order:', error);
-      alert('❌ Gagal memproses belanja kolektif. Silakan coba lagi.');
+      console.error('Error creating collective order:', error)
+      showError('Gagal memproses belanja kolektif. Silakan coba lagi.')
     }
-  };
+  }
 
   const processInventoryRestock = async (item) => {
     try {
@@ -218,15 +165,15 @@ export default function CollectiveShopping() {
         collection(db, 'products'),
         where('userId', '==', currentUser.uid),
         where('nama', '==', item.productName)
-      );
+      )
 
-      const existingProducts = await getDocs(productsQuery);
+      const existingProducts = await getDocs(productsQuery)
 
       if (!existingProducts.empty) {
         // Product exists - update stock
-        const existingProduct = existingProducts.docs[0];
-        const currentStock = existingProduct.data().stok || 0;
-        const newStock = currentStock + item.quantity;
+        const existingProduct = existingProducts.docs[0]
+        const currentStock = existingProduct.data().stok || 0
+        const newStock = currentStock + item.quantity
 
         await updateDoc(doc(db, 'products', existingProduct.id), {
           stok: newStock,
@@ -234,9 +181,9 @@ export default function CollectiveShopping() {
           lastRestockQuantity: item.quantity,
           lastRestockPrice: item.bulkPrice,
           lastRestockSource: 'collective_purchase'
-        });
+        })
 
-        console.log(`Updated ${item.productName}: ${currentStock} + ${item.quantity} = ${newStock}`);
+  // updated product stock successfully
       } else {
         // Product doesn't exist - create new product
         const newProductData = {
@@ -251,30 +198,30 @@ export default function CollectiveShopping() {
           lastRestockPrice: item.bulkPrice,
           lastRestockSource: 'collective_purchase',
           addedViaCollective: true
-        };
+        }
 
-        await addDoc(collection(db, 'products'), newProductData);
-        console.log(`Created new product: ${item.productName} with stock ${item.quantity}`);
+        await addDoc(collection(db, 'products'), newProductData)
+  // created new product after collective restock
       }
     } catch (error) {
-      console.error(`Error processing restock for ${item.productName}:`, error);
-      throw error;
+      console.error(`Error processing restock for ${item.productName}:`, error)
+      throw error
     }
-  };
+  }
 
-  const calculateBulkSavings = (estimatedPrice) => {
+  const _calculateBulkSavings = (estimatedPrice) => {
     // Assume 15-25% savings for bulk purchase
-    const savingsPercentage = 20;
-    const savings = estimatedPrice * (savingsPercentage / 100);
-    return { savings, percentage: savingsPercentage };
-  };
+    const savingsPercentage = 20
+    const savings = estimatedPrice * (savingsPercentage / 100)
+    return { savings, percentage: savingsPercentage }
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -316,77 +263,82 @@ export default function CollectiveShopping() {
         </motion.div>
       )}
 
-      {/* Demo Collective Shopping Offers */}
-      {demoOffers.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4"
-        >
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-secondary mb-2">🛒 Penawaran Belanja Kolektif</h2>
-            <p className="text-gray-600">Bergabung dengan pedagang lain untuk harga grosir</p>
-            <div className="mt-2 text-sm text-blue-600 bg-blue-50 rounded-lg p-2">
-              💡 <strong>Demo:</strong> Data pedagang dan penawaran disimulasikan secara real-time
-            </div>
-          </div>
-          
-          <div className="grid gap-4">
-            {demoOffers.map((offer) => (
+      {/* Collective offers cards for each low-stock product */}
+      {myProducts.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {myProducts.map((product) => {
+            // Build a simple offer model for the UI
+            const originalPrice = product.harga || 0
+            const discountPercentage = 20 // show 20% bulk discount by default
+            const discountedPrice = Math.round(originalPrice * (1 - discountPercentage / 100))
+            const minOrder = product.batchSize && product.batchSize > 1 ? product.batchSize * 5 : 10
+            const quantityToBuy = minOrder
+            const savingsPerUnit = originalPrice - discountedPrice
+            const totalSavings = savingsPerUnit * quantityToBuy
+
+            const offer = {
+              productId: product.id,
+              productName: product.nama,
+              originalPrice,
+              discountedPrice,
+              discountPercentage,
+              minOrder,
+              currentStock: product.stok || 0,
+              category: product.kategori || 'Umum',
+              unit: product.satuan || 'unit',
+              interestedMerchants: 2 // placeholder
+            }
+
+            // expected profit if store resells at existing price (simple estimation)
+            const expectedProfit = (product.harga - discountedPrice) * quantityToBuy
+
+            return (
               <motion.div
-                key={offer.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-4"
+                key={product.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="card"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-green-800 text-lg">{offer.productName}</h3>
-                    <p className="text-sm text-green-600">Stok tersisa: {offer.currentStock} {offer.unit}</p>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 pr-3">
+                    <h3 className="font-semibold text-secondary text-lg truncate">{product.nama}</h3>
+                    <p className="text-sm text-gray-600 mt-1">Stok tersisa: <span className="font-bold">{product.stok}</span></p>
+                    <p className="text-sm text-gray-600">Harga jual saat ini: <span className="font-semibold">Rp {originalPrice.toLocaleString('id-ID')}</span></p>
                   </div>
+
                   <div className="text-right">
-                    <div className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold">
-                      -{offer.discountPercentage}%
-                    </div>
+                    <p className="text-xs text-gray-500">Diskon kolektif</p>
+                    <p className="text-lg font-bold text-green-600">{discountPercentage}%</p>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center bg-white bg-opacity-50 rounded-lg p-3">
-                    <Users className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                    <p className="text-sm text-gray-600">Pedagang Tertarik</p>
-                    <p className="font-bold text-blue-600">{offer.interestedMerchants}</p>
-                  </div>
-                  <div className="text-center bg-white bg-opacity-50 rounded-lg p-3">
-                    <Package className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                    <p className="text-sm text-gray-600">Min. Order</p>
-                    <p className="font-bold text-green-600">{offer.minOrder} {offer.unit}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between mb-4">
+
+                <div className="mt-3 grid grid-cols-2 gap-3 items-center">
                   <div>
-                    <p className="text-sm text-gray-500 line-through">Rp {offer.originalPrice.toLocaleString('id-ID')}</p>
-                    <p className="text-lg font-bold text-green-700">Rp {offer.discountedPrice.toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-gray-500">Harga grosir / unit</p>
+                    <p className="font-semibold">Rp {discountedPrice.toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-gray-500 mt-1">Minimal order: <span className="font-medium">{minOrder} {offer.unit}</span></p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Sisa waktu</p>
-                    <p className="font-bold text-orange-600">{offer.timeLeft} jam</p>
+
+                  <div>
+                    <p className="text-xs text-gray-500">Estimasi keuntungan jika ikut</p>
+                    <p className="font-semibold text-secondary">Rp {expectedProfit.toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-gray-400">(Hemat Rp {totalSavings.toLocaleString('id-ID')} untuk {quantityToBuy} unit)</p>
                   </div>
                 </div>
-                
-                <button
-                  onClick={() => handleCollectiveShoppingJoin(offer)}
-                  className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 rounded-xl font-bold hover:from-green-700 hover:to-blue-700 transition-all duration-200"
-                >
-                  🤝 Bergabung Sekarang
-                </button>
+
+                <div className="mt-4">
+                  <button
+                    onClick={() => _handleCollectiveShoppingJoin(offer)}
+                    className="btn-primary w-full text-center"
+                  >
+                    Ikut Belanja
+                  </button>
+                </div>
               </motion.div>
-            ))}
-          </div>
-        </motion.div>
+            )
+          })}
+        </div>
       )}
     </div>
-  );
+  )
 }

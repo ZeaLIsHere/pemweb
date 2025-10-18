@@ -1,39 +1,60 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react'
 
-const NotificationContext = createContext();
+const NotificationContext = createContext()
 
-export function useNotification() {
-  return useContext(NotificationContext);
+export function useNotification () {
+  return useContext(NotificationContext)
 }
 
-export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState([]);
+export function NotificationProvider ({ children }) {
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const addNotification = (notification) => {
-    const id = Date.now().toString();
+    const id = Date.now() + Math.random()
     const newNotification = {
       id,
+      read: false,
       timestamp: new Date(),
       ...notification
-    };
+    }
     
-    setNotifications(prev => [newNotification, ...prev.slice(0, 4)]); // Keep max 5 notifications
+    setNotifications(prev => [...prev, newNotification])
+    // unreadCount will be auto-calculated by useEffect
     
     // Auto remove after 10 seconds if no action required
     if (!notification.persistent) {
       setTimeout(() => {
-        removeNotification(id);
-      }, 10000);
+        removeNotification(id)
+      }, 10000)
     }
-  };
+  }
+
+  // Auto-calculate unread count whenever notifications change
+  useEffect(() => {
+    const unreadCount = notifications.filter(notif => !notif.read).length
+    setUnreadCount(unreadCount)
+  }, [notifications])
 
   const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
+    setNotifications(prev => prev.filter(notif => notif.id !== id))
+  }
+
+  const markAsRead = (id) => {
+    setNotifications(prev => prev.map(notif => 
+      notif.id === id ? { ...notif, read: true } : notif
+    ))
+  }
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })))
+    // unreadCount will be auto-calculated by useEffect
+  }
 
   const clearAllNotifications = () => {
-    setNotifications([]);
-  };
+    setNotifications([])
+    // unreadCount will be auto-calculated by useEffect
+  }
 
   // Predefined notification types
   const notifyStockOut = (product, onAction) => {
@@ -41,26 +62,43 @@ export function NotificationProvider({ children }) {
       type: 'stock-out',
       title: 'Stok Habis',
       message: `${product.nama} sudah habis`,
-      product: product,
+      product,
       action: onAction,
       actionText: 'Tambah Stok',
       color: 'red',
       persistent: true
-    });
-  };
+    })
+  }
 
   const notifyLowStock = (product, onAction) => {
     addNotification({
       type: 'stock-low',
       title: 'Stok Menipis',
       message: `${product.nama} tinggal ${product.stok} item`,
-      product: product,
+      product,
       action: onAction,
       actionText: 'Tambah Stok',
       color: 'yellow',
       persistent: true
-    });
-  };
+    })
+  }
+
+  const notifyLowStockWithPromotion = (product, onCreatePromotion, onCreateDiscount, onCreateBundle) => {
+    addNotification({
+      type: 'stock-low-promo',
+      title: 'Stok Menipis - Buat Promosi?',
+      message: `${product.nama} tinggal ${product.stok} item. Buat promosi untuk mempercepat penjualan?`,
+      product,
+      actions: [
+        { text: 'Buat Promosi', action: onCreatePromotion, color: 'blue' },
+        { text: 'Buat Diskon', action: onCreateDiscount, color: 'green' },
+        { text: 'Buat Bundle', action: onCreateBundle, color: 'purple' }
+      ],
+      color: 'orange',
+      persistent: true,
+      multiAction: true
+    })
+  }
 
   const notifyTransactionSuccess = (total, method, onViewDetails) => {
     addNotification({
@@ -71,8 +109,8 @@ export function NotificationProvider({ children }) {
       actionText: 'Lihat Detail',
       color: 'green',
       persistent: false
-    });
-  };
+    })
+  }
 
   const notifyProductAdded = (productName, onViewProduct) => {
     addNotification({
@@ -83,8 +121,8 @@ export function NotificationProvider({ children }) {
       actionText: 'Lihat Produk',
       color: 'blue',
       persistent: false
-    });
-  };
+    })
+  }
 
   const notifyStockUpdated = (productName, newStock, onViewProduct) => {
     addNotification({
@@ -95,25 +133,29 @@ export function NotificationProvider({ children }) {
       actionText: 'Lihat Produk',
       color: 'blue',
       persistent: false
-    });
-  };
+    })
+  }
 
   const value = {
     notifications,
+    unreadCount,
     addNotification,
     removeNotification,
+    markAsRead,
+    markAllAsRead,
     clearAllNotifications,
     // Helper functions
     notifyStockOut,
     notifyLowStock,
+    notifyLowStockWithPromotion,
     notifyTransactionSuccess,
     notifyProductAdded,
     notifyStockUpdated
-  };
+  }
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
-  );
+  )
 }

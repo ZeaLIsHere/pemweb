@@ -1,46 +1,43 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   Menu, 
   X, 
   User, 
   Settings, 
   LogOut, 
-  Mail,
-  Moon,
-  Sun,
-  Globe
-} from 'lucide-react';
+  Mail
+} from 'lucide-react'
 
-export default function BurgerMenu() {
-  const { logout, currentUser } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef(null);
+export default function BurgerMenu () {
+  const { logout, currentUser } = useAuth()
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef(null)
 
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
-      await logout();
-      setIsOpen(false);
+      await logout()
+      setIsOpen(false)
     } catch (error) {
-      console.error('Failed to log out', error);
+      console.error('Failed to log out', error)
     }
-  };
+  }
 
   const menuItems = [
     {
@@ -51,11 +48,11 @@ export default function BurgerMenu() {
     },
     {
       icon: Settings,
-      label: 'Pengaturan',
+      label: 'Status Langganan',
       path: '/settings',
-      description: 'Atur toko dan bahasa'
+      description: 'Lihat status dan opsi langganan'
     }
-  ];
+  ]
 
   return (
     <div className="relative" ref={menuRef}>
@@ -66,7 +63,7 @@ export default function BurgerMenu() {
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 transition-colors relative"
         style={{ 
-          color: 'var(--color-text-secondary)',
+          color: 'var(--color-text-secondary)'
         }}
         onMouseEnter={(e) => e.target.style.color = 'var(--color-primary)'}
         onMouseLeave={(e) => e.target.style.color = 'var(--color-text-secondary)'}
@@ -140,7 +137,7 @@ export default function BurgerMenu() {
               {/* Menu Items */}
               <div className="py-2">
                 {menuItems.map((item, index) => {
-                  const Icon = item.icon;
+                  const Icon = item.icon
                   return (
                     <Link
                       key={item.path}
@@ -160,10 +157,10 @@ export default function BurgerMenu() {
                           }
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = 'rgba(156, 163, 175, 0.1)';
+                          e.target.style.backgroundColor = 'rgba(156, 163, 175, 0.1)'
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.backgroundColor = 'transparent'
                         }}
                       >
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -176,7 +173,7 @@ export default function BurgerMenu() {
                         </div>
                       </motion.div>
                     </Link>
-                  );
+                  )
                 })}
               </div>
 
@@ -192,10 +189,10 @@ export default function BurgerMenu() {
                 className="w-full flex items-center space-x-3 px-4 py-3 transition-colors"
                 style={{ color: 'var(--color-error)' }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                  e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = 'transparent'
                 }}
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -212,5 +209,5 @@ export default function BurgerMenu() {
         )}
       </AnimatePresence>
     </div>
-  );
+  )
 }

@@ -1,54 +1,54 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Store } from 'lucide-react';
-import StoreSetupModal from '../components/StoreSetupModal';
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { Eye, EyeOff, Store } from 'lucide-react'
+import StoreSetupModal from '../components/StoreSetupModal'
 
-export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showStoreSetup, setShowStoreSetup] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
-  const { signup } = useAuth();
-  const navigate = useNavigate();
+export default function Register () {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showStoreSetup, setShowStoreSetup] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
+  const { signup } = useAuth()
+  const navigate = useNavigate()
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit (e) {
+    e.preventDefault()
 
     if (password !== confirmPassword) {
-      return setError('Password tidak sama');
+      return setError('Password tidak sama')
     }
 
     if (password.length < 6) {
-      return setError('Password minimal 6 karakter');
+      return setError('Password minimal 6 karakter')
     }
 
     try {
-      setError('');
-      setLoading(true);
-      await signup(email, password);
+      setError('')
+      setLoading(true)
+      await signup(email, password)
       
       // Store email for store setup
-      setRegisteredEmail(email);
+      setRegisteredEmail(email)
       
       // Show store setup modal instead of navigating
-      setShowStoreSetup(true);
-      setLoading(false);
+      setShowStoreSetup(true)
+      setLoading(false)
     } catch (error) {
-      setError('Gagal membuat akun. Email mungkin sudah digunakan.');
-      setLoading(false);
+      setError('Gagal membuat akun. Email mungkin sudah digunakan.')
+      setLoading(false)
     }
   }
 
   const handleStoreSetupComplete = () => {
-    setShowStoreSetup(false);
-    navigate('/');
-  };
+    setShowStoreSetup(false)
+    navigate('/')
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-accent flex items-center justify-center p-4">
@@ -161,5 +161,5 @@ export default function Register() {
         userEmail={registeredEmail}
       />
     </div>
-  );
+  )
 }

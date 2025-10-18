@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { useStore } from '../contexts/StoreContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -11,7 +12,6 @@ import {
   Package, 
   ShoppingCart,
   Filter,
-  Download,
   ChevronDown,
   ChevronUp,
   X,
@@ -23,46 +23,46 @@ import {
   Award,
   Star,
   AlertTriangle
-} from 'lucide-react';
+} from 'lucide-react'
 
 // Simple Pie Chart Component
 const SimplePieChart = ({ data, size = 120 }) => {
-  if (!data || data.length === 0) return null;
+  if (!data || data.length === 0) return null
 
-  const radius = size / 2 - 10;
-  const centerX = size / 2;
-  const centerY = size / 2;
+  const radius = size / 2 - 10
+  const centerX = size / 2
+  const centerY = size / 2
   
   const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
-    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0
     return {
       x: centerX + (radius * Math.cos(angleInRadians)),
       y: centerY + (radius * Math.sin(angleInRadians))
-    };
-  };
+    }
+  }
   
   const createArcPath = (startAngle, endAngle, radius, centerX, centerY) => {
-    const start = polarToCartesian(centerX, centerY, radius, endAngle);
-    const end = polarToCartesian(centerX, centerY, radius, startAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    const start = polarToCartesian(centerX, centerY, radius, endAngle)
+    const end = polarToCartesian(centerX, centerY, radius, startAngle)
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1"
     
     return [
       "M", centerX, centerY,
       "L", start.x, start.y,
       "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
       "Z"
-    ].join(" ");
-  };
+    ].join(" ")
+  }
 
-  let cumulativePercentage = 0;
+  let cumulativePercentage = 0
 
   return (
     <div className="flex items-center space-x-4">
       <svg width={size} height={size} className="transform -rotate-90">
         {data.map((segment, index) => {
-          const startAngle = cumulativePercentage * 3.6;
-          const endAngle = (cumulativePercentage + segment.percentage) * 3.6;
-          cumulativePercentage += segment.percentage;
+          const startAngle = cumulativePercentage * 3.6
+          const endAngle = (cumulativePercentage + segment.percentage) * 3.6
+          cumulativePercentage += segment.percentage
           
           return (
             <path
@@ -72,7 +72,7 @@ const SimplePieChart = ({ data, size = 120 }) => {
               stroke="white"
               strokeWidth="2"
             />
-          );
+          )
         })}
       </svg>
       
@@ -93,191 +93,200 @@ const SimplePieChart = ({ data, size = 120 }) => {
         ))}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default function Statistics() {
-  const { currentUser } = useAuth();
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filterPeriod, setFilterPeriod] = useState('today'); // today, week, month, year, custom
+export default function Statistics () {
+  const { currentUser } = useAuth()
+  const { currentStore, storeStats } = useStore()
+  const [sales, setSales] = useState([])
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filterPeriod, setFilterPeriod] = useState('today') // today, week, month, year, custom
   const [customDateRange, setCustomDateRange] = useState({
     start: '',
     end: ''
-  });
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [showInsightModal, setShowInsightModal] = useState(false);
-  const [dateRangeError, setDateRangeError] = useState('');
+  })
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [showInsightModal, setShowInsightModal] = useState(false)
+  const [dateRangeError, setDateRangeError] = useState('')
 
   // Validate custom date range
   const validateDateRange = (start, end) => {
     if (!start || !end) {
-      setDateRangeError('');
-      return true;
+      setDateRangeError('')
+      return true
     }
 
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const startDate = new Date(start)
+    const endDate = new Date(end)
 
     if (startDate > endDate) {
-      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari tanggal "Sampai"');
-      return false;
+      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari tanggal "Sampai"')
+      return false
     }
 
     // Check if date range is too far in the future
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // End of today
     if (startDate > today) {
-      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari hari ini');
-      return false;
+      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari hari ini')
+      return false
     }
     
     if (endDate > today) {
-      setDateRangeError('Tanggal "Sampai" tidak boleh lebih besar dari hari ini');
-      return false;
+      setDateRangeError('Tanggal "Sampai" tidak boleh lebih besar dari hari ini')
+      return false
     }
 
     // Check if date range is more than 1 year
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
     if (startDate < oneYearAgo) {
-      setDateRangeError('Rentang tanggal maksimal 1 tahun dari hari ini');
-      return false;
+      setDateRangeError('Rentang tanggal maksimal 1 tahun dari hari ini')
+      return false
     }
 
-    setDateRangeError('');
-    return true;
-  };
+    setDateRangeError('')
+    return true
+  }
 
   // Handle custom date range changes
   const handleDateRangeChange = (field, value) => {
-    const newRange = { ...customDateRange, [field]: value };
-    setCustomDateRange(newRange);
+    const newRange = { ...customDateRange, [field]: value }
+    setCustomDateRange(newRange)
     
     // Validate when both dates are filled
     if (newRange.start && newRange.end) {
-      validateDateRange(newRange.start, newRange.end);
+      validateDateRange(newRange.start, newRange.end)
     } else {
-      setDateRangeError('');
+      setDateRangeError('')
     }
-  };
+  }
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     // Listen to sales data
     const salesQuery = query(
       collection(db, 'sales'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
       const salesData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      }))
       
       // Sort by timestamp in JavaScript (newest first)
       salesData.sort((a, b) => {
-        if (!a.timestamp || !b.timestamp) return 0;
-        return b.timestamp.toDate() - a.timestamp.toDate();
-      });
+        if (!a.timestamp || !b.timestamp) return 0
+        return b.timestamp.toDate() - a.timestamp.toDate()
+      })
       
-      setSales(salesData);
-      setLoading(false);
+      setSales(salesData)
+      setLoading(false)
     }, (error) => {
-      console.error('Error fetching sales:', error);
-      setLoading(false);
-    });
+      console.error('Error fetching sales:', error)
+      setLoading(false)
+    })
 
     // Listen to products data
     const productsQuery = query(
       collection(db, 'products'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
       const productsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-      setProducts(productsData);
+      }))
+      setProducts(productsData)
     }, (error) => {
-      console.error('Error fetching products:', error);
-    });
+      console.error('Error fetching products:', error)
+    })
 
     return () => {
-      unsubscribeSales();
-      unsubscribeProducts();
-    };
-  }, [currentUser]);
+      unsubscribeSales()
+      unsubscribeProducts()
+    }
+  }, [currentUser])
 
   // Filter sales based on selected period
   const getFilteredSales = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     
     return sales.filter(sale => {
-      if (!sale.timestamp) return false;
+      if (!sale.timestamp) return false
       
-      const saleDate = sale.timestamp.toDate();
+      const saleDate = sale.timestamp.toDate()
       
       switch (filterPeriod) {
         case 'today':
-          return saleDate >= today;
+          return saleDate >= today
         
         case 'week':
-          const weekAgo = new Date(today);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          return saleDate >= weekAgo;
+          const weekAgo = new Date(today)
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return saleDate >= weekAgo
         
         case 'month':
-          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          return saleDate >= monthStart;
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+          return saleDate >= monthStart
         
         case 'year':
-          const yearStart = new Date(now.getFullYear(), 0, 1);
-          return saleDate >= yearStart;
+          const yearStart = new Date(now.getFullYear(), 0, 1)
+          return saleDate >= yearStart
         
         case 'custom':
-          if (!customDateRange.start || !customDateRange.end) return true;
+          if (!customDateRange.start || !customDateRange.end) return true
           // Don't filter if there's a date range error
-          if (dateRangeError) return true;
-          const startDate = new Date(customDateRange.start);
-          const endDate = new Date(customDateRange.end);
-          endDate.setHours(23, 59, 59, 999); // Include end of day
-          return saleDate >= startDate && saleDate <= endDate;
+          if (dateRangeError) return true
+          const startDate = new Date(customDateRange.start)
+          const endDate = new Date(customDateRange.end)
+          endDate.setHours(23, 59, 59, 999) // Include end of day
+          return saleDate >= startDate && saleDate <= endDate
         
         default:
-          return true;
+          return true
       }
-    });
-  };
+    })
+  }
 
-  const filteredSales = getFilteredSales();
+  const filteredSales = getFilteredSales()
 
-  // Calculate statistics
+  // Calculate statistics - use real-time data from storeStats
   const getTotalRevenue = () => {
-    return filteredSales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
-  };
+    // Use real-time data from storeStats if available, otherwise fallback to filtered sales
+    if (storeStats.totalRevenue > 0) {
+      return storeStats.totalRevenue
+    }
+    return filteredSales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0)
+  }
 
   const getTotalTransactions = () => {
-    return filteredSales.length;
-  };
+    // Use real-time data from storeStats if available, otherwise fallback to filtered sales
+    if (storeStats.totalSales > 0) {
+      return storeStats.totalSales
+    }
+    return filteredSales.length
+  }
 
   const getAverageTransaction = () => {
-    const total = getTotalRevenue();
-    const count = getTotalTransactions();
-    return count > 0 ? total / count : 0;
-  };
+    const total = getTotalRevenue()
+    const count = getTotalTransactions()
+    return count > 0 ? total / count : 0
+  }
 
   const getTopProducts = () => {
     try {
-      const productSales = {};
+      const productSales = {}
       
       if (!filteredSales || filteredSales.length === 0) {
-        return [];
+        return []
       }
       
       filteredSales.forEach(sale => {
@@ -285,72 +294,72 @@ export default function Statistics() {
       if (sale.items && Array.isArray(sale.items)) {
         // New format with items array
         sale.items.forEach(item => {
-          const productName = item.nama || item.productName || 'Unknown Product';
-          const quantity = item.quantity || 1;
-          const revenue = (item.harga || item.price || 0) * quantity;
+          const productName = item.nama || item.productName || 'Unknown Product'
+          const quantity = item.quantity || 1
+          const revenue = (item.harga || item.price || 0) * quantity
           
           if (productSales[productName]) {
-            productSales[productName].count += quantity;
-            productSales[productName].revenue += revenue;
-            productSales[productName].transactions += 1;
+            productSales[productName].count += quantity
+            productSales[productName].revenue += revenue
+            productSales[productName].transactions += 1
           } else {
             productSales[productName] = {
               name: productName,
               count: quantity,
-              revenue: revenue,
+              revenue,
               transactions: 1
-            };
+            }
           }
-        });
+        })
       } else if (sale.productName) {
         // Old format (single product per sale)
-        const productName = sale.productName;
-        const revenue = sale.price || sale.totalAmount || 0;
+        const productName = sale.productName
+        const revenue = sale.price || sale.totalAmount || 0
         
         if (productSales[productName]) {
-          productSales[productName].count += 1;
-          productSales[productName].revenue += revenue;
-          productSales[productName].transactions += 1;
+          productSales[productName].count += 1
+          productSales[productName].revenue += revenue
+          productSales[productName].transactions += 1
         } else {
           productSales[productName] = {
             name: productName,
             count: 1,
-            revenue: revenue,
+            revenue,
             transactions: 1
-          };
+          }
         }
       }
-    });
+    })
 
       return Object.values(productSales)
         .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
+        .slice(0, 5)
     } catch (error) {
-      console.error('Error in getTopProducts:', error);
-      return [];
+      console.error('Error in getTopProducts:', error)
+      return []
     }
-  };
+  }
 
   // Get revenue distribution for pie chart
   const getRevenueDistribution = () => {
     try {
-      const topProducts = getTopProducts();
-      const totalRevenue = getTotalRevenue();
+      const topProducts = getTopProducts()
+      const totalRevenue = getTotalRevenue()
       
       if (totalRevenue === 0 || topProducts.length === 0) {
-        return [];
+        return []
       }
 
-      const topProduct = topProducts[0];
+      const topProduct = topProducts[0]
       if (!topProduct) {
-        return [];
+        return []
       }
 
-      const topProductRevenue = topProduct.revenue || 0;
-      const otherProductsRevenue = totalRevenue - topProductRevenue;
+      const topProductRevenue = topProduct.revenue || 0
+      const otherProductsRevenue = totalRevenue - topProductRevenue
       
-      const topProductPercentage = (topProductRevenue / totalRevenue) * 100;
-      const otherProductsPercentage = (otherProductsRevenue / totalRevenue) * 100;
+      const topProductPercentage = (topProductRevenue / totalRevenue) * 100
+      const otherProductsPercentage = (otherProductsRevenue / totalRevenue) * 100
 
       return [
         {
@@ -365,151 +374,151 @@ export default function Statistics() {
           percentage: otherProductsPercentage,
           color: '#E5E7EB' // Gray color
         }
-      ];
+      ]
     } catch (error) {
-      console.error('Error in getRevenueDistribution:', error);
-      return [];
+      console.error('Error in getRevenueDistribution:', error)
+      return []
     }
-  };
+  }
 
   // Group sales by date for chart
   const getSalesByDate = () => {
-    const salesByDate = {};
+    const salesByDate = {}
     
     filteredSales.forEach(sale => {
-      if (!sale.timestamp) return;
+      if (!sale.timestamp) return
       
-      const date = sale.timestamp.toDate().toLocaleDateString('id-ID');
-      const revenue = sale.price || sale.totalAmount || 0;
+      const date = sale.timestamp.toDate().toLocaleDateString('id-ID')
+      const revenue = sale.price || sale.totalAmount || 0
       
       if (salesByDate[date]) {
-        salesByDate[date] += revenue;
+        salesByDate[date] += revenue
       } else {
-        salesByDate[date] = revenue;
+        salesByDate[date] = revenue
       }
-    });
+    })
 
     return Object.entries(salesByDate)
       .sort(([a], [b]) => new Date(a.split('/').reverse().join('-')) - new Date(b.split('/').reverse().join('-')))
-      .slice(-7); // Last 7 days
-  };
+      .slice(-7) // Last 7 days
+  }
 
   const getPeriodLabel = () => {
     switch (filterPeriod) {
-      case 'today': return 'Hari Ini';
-      case 'week': return '7 Hari Terakhir';
-      case 'month': return 'Bulan Ini';
-      case 'year': return 'Tahun Ini';
-      case 'custom': return 'Periode Kustom';
-      default: return 'Semua Data';
+      case 'today': return 'Hari Ini'
+      case 'week': return '7 Hari Terakhir'
+      case 'month': return 'Bulan Ini'
+      case 'year': return 'Tahun Ini'
+      case 'custom': return 'Periode Kustom'
+      default: return 'Semua Data'
     }
-  };
+  }
 
   // Get busiest day of the week
   const getBusiestDay = () => {
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const now = new Date()
+    const weekAgo = new Date(now)
+    weekAgo.setDate(weekAgo.getDate() - 7)
     
     const weekSales = sales.filter(sale => {
-      if (!sale.timestamp) return false;
-      const saleDate = sale.timestamp.toDate();
-      return saleDate >= weekAgo;
-    });
+      if (!sale.timestamp) return false
+      const saleDate = sale.timestamp.toDate()
+      return saleDate >= weekAgo
+    })
 
-    const dayCount = {};
-    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayCount = {}
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     
     weekSales.forEach(sale => {
-      const dayOfWeek = sale.timestamp.toDate().getDay();
-      const dayName = dayNames[dayOfWeek];
-      dayCount[dayName] = (dayCount[dayName] || 0) + 1;
-    });
+      const dayOfWeek = sale.timestamp.toDate().getDay()
+      const dayName = dayNames[dayOfWeek]
+      dayCount[dayName] = (dayCount[dayName] || 0) + 1
+    })
 
-    if (Object.keys(dayCount).length === 0) return null;
+    if (Object.keys(dayCount).length === 0) return null
 
     const busiestDay = Object.entries(dayCount)
-      .sort(([,a], [,b]) => b - a)[0];
+      .sort(([, a], [, b]) => b - a)[0]
     
     return {
       day: busiestDay[0],
       count: busiestDay[1],
       dayIndex: dayNames.indexOf(busiestDay[0])
-    };
-  };
+    }
+  }
 
   // Get sales data for the busiest day
   const getBusiestDayDetails = () => {
-    const busiestDay = getBusiestDay();
-    if (!busiestDay) return null;
+    const busiestDay = getBusiestDay()
+    if (!busiestDay) return null
 
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const now = new Date()
+    const weekAgo = new Date(now)
+    weekAgo.setDate(weekAgo.getDate() - 7)
 
     // Find the most recent occurrence of the busiest day
     const busiestDaySales = sales.filter(sale => {
-      if (!sale.timestamp) return false;
-      const saleDate = sale.timestamp.toDate();
-      return saleDate >= weekAgo && saleDate.getDay() === busiestDay.dayIndex;
-    });
+      if (!sale.timestamp) return false
+      const saleDate = sale.timestamp.toDate()
+      return saleDate >= weekAgo && saleDate.getDay() === busiestDay.dayIndex
+    })
 
     // Group by product
-    const productSales = {};
-    let totalRevenue = 0;
+    const productSales = {}
+    let totalRevenue = 0
 
     busiestDaySales.forEach(sale => {
-      const revenue = sale.price || sale.totalAmount || 0;
-      totalRevenue += revenue;
+      const revenue = sale.price || sale.totalAmount || 0
+      totalRevenue += revenue
       
       // Handle both old format (single product) and new format (items array)
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach(item => {
-          const productName = item.nama || item.productName || 'Unknown Product';
-          const quantity = item.quantity || 1;
-          const itemRevenue = (item.harga || item.price || 0) * quantity;
+          const productName = item.nama || item.productName || 'Unknown Product'
+          const quantity = item.quantity || 1
+          const itemRevenue = (item.harga || item.price || 0) * quantity
           
           if (productSales[productName]) {
-            productSales[productName].count += quantity;
-            productSales[productName].revenue += itemRevenue;
+            productSales[productName].count += quantity
+            productSales[productName].revenue += itemRevenue
           } else {
             productSales[productName] = {
               name: productName,
               count: quantity,
               revenue: itemRevenue
-            };
+            }
           }
-        });
+        })
       } else if (sale.productName) {
         if (productSales[sale.productName]) {
-          productSales[sale.productName].count += 1;
-          productSales[sale.productName].revenue += revenue;
+          productSales[sale.productName].count += 1
+          productSales[sale.productName].revenue += revenue
         } else {
           productSales[sale.productName] = {
             name: sale.productName,
             count: 1,
-            revenue: revenue
-          };
+            revenue
+          }
         }
       }
-    });
+    })
 
     return {
       day: busiestDay.day,
       totalTransactions: busiestDay.count,
       totalRevenue,
       products: Object.values(productSales).sort((a, b) => b.revenue - a.revenue)
-    };
-  };
+    }
+  }
 
   // Generate AI suggestions based on busiest day analysis
   const getAISuggestions = () => {
-    const details = getBusiestDayDetails();
-    if (!details) return [];
+    const details = getBusiestDayDetails()
+    if (!details) return []
 
-    const suggestions = [];
-    const { day, totalTransactions, totalRevenue, products } = details;
-    const avgTransaction = totalRevenue / totalTransactions;
+    const suggestions = []
+    const { day, totalTransactions, totalRevenue, products } = details
+    const avgTransaction = totalRevenue / totalTransactions
 
     // Suggestion based on day pattern
     if (['Sabtu', 'Minggu'].includes(day)) {
@@ -517,23 +526,23 @@ export default function Statistics() {
         type: 'schedule',
         title: 'Optimasi Jadwal Weekend',
         content: `Hari ${day} adalah hari tersibuk Anda. Pastikan stok produk terlaris mencukupi dan pertimbangkan untuk menambah jam operasional di weekend.`
-      });
+      })
     } else {
       suggestions.push({
         type: 'schedule',
         title: 'Pola Hari Kerja',
         content: `Hari ${day} menunjukkan aktivitas tinggi di hari kerja. Manfaatkan momentum ini dengan promosi khusus atau bundle produk.`
-      });
+      })
     }
 
     // Suggestion based on top product
     if (products.length > 0) {
-      const topProduct = products[0];
+      const topProduct = products[0]
       suggestions.push({
         type: 'product',
         title: 'Fokus Produk Unggulan',
         content: `${topProduct.name} adalah produk terlaris di hari ${day} dengan ${topProduct.count} penjualan. Pastikan stok selalu tersedia dan pertimbangkan untuk membuat varian atau bundle.`
-      });
+      })
     }
 
     // Suggestion based on revenue
@@ -542,13 +551,13 @@ export default function Statistics() {
         type: 'pricing',
         title: 'Strategi Premium',
         content: `Rata-rata transaksi Rp ${avgTransaction.toLocaleString('id-ID')} menunjukkan customer willing to pay premium. Pertimbangkan untuk menaikkan margin atau menambah produk premium.`
-      });
+      })
     } else {
       suggestions.push({
         type: 'volume',
         title: 'Strategi Volume',
         content: `Dengan rata-rata transaksi Rp ${avgTransaction.toLocaleString('id-ID')}, fokus pada peningkatan volume penjualan dengan promosi bundle atau diskon quantity.`
-      });
+      })
     }
 
     // Suggestion based on product diversity
@@ -557,18 +566,18 @@ export default function Statistics() {
         type: 'diversity',
         title: 'Diversifikasi Berhasil',
         content: `Anda berhasil menjual ${products.length} jenis produk berbeda di hari ${day}. Pertahankan variasi produk dan analisis cross-selling opportunity.`
-      });
+      })
     }
 
-    return suggestions;
-  };
+    return suggestions
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   // Error boundary for the entire component
@@ -713,7 +722,7 @@ export default function Statistics() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Total Pendapatan</p>
-              <p className="text-lg font-bold text-secondary">
+              <p className="text-lg font-bold text-secondary font-mono">
                 Rp {getTotalRevenue().toLocaleString('id-ID')}
               </p>
             </div>
@@ -732,7 +741,7 @@ export default function Statistics() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Total Transaksi</p>
-              <p className="text-lg font-bold text-secondary">{getTotalTransactions()}</p>
+              <p className="text-lg font-bold text-secondary font-mono">{getTotalTransactions()}</p>
             </div>
           </div>
         </motion.div>
@@ -749,12 +758,56 @@ export default function Statistics() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Rata-rata/Transaksi</p>
-              <p className="text-lg font-bold text-secondary">
+              <p className="text-lg font-bold text-secondary font-mono">
                 Rp {getAverageTransaction().toLocaleString('id-ID')}
               </p>
             </div>
           </div>
         </motion.div>
+
+        {/* Pendapatan Hari Ini */}
+        {currentStore && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="card"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Pendapatan Hari Ini</p>
+                <p className="text-lg font-bold text-green-600 font-mono">
+                  Rp {storeStats.todayRevenue.toLocaleString('id-ID')}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Transaksi Hari Ini */}
+        {currentStore && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="card"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Transaksi Hari Ini</p>
+                <p className="text-2xl font-bold text-blue-600 font-mono">
+                  {storeStats.todaySales}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -793,9 +846,9 @@ export default function Statistics() {
               <h3 className="font-semibold text-secondary mb-1">Insight Mingguan</h3>
               <p className="text-sm text-gray-700">
                 Transaksi terbanyak terjadi pada hari{' '}
-                <span className="font-bold text-blue-600">{getBusiestDay().day}</span>{' '}
+                <span className="font-bold text-blue-600 font-mono">{getBusiestDay().day}</span>{' '}
                 dalam minggu ini dengan{' '}
-                <span className="font-bold text-blue-600">{getBusiestDay().count} transaksi</span>
+                <span className="font-bold text-blue-600 font-mono">{getBusiestDay().count} transaksi</span>
               </p>
               <p className="text-xs text-blue-500 mt-1"> Tap untuk detail & saran AI</p>
             </div>
@@ -814,8 +867,8 @@ export default function Statistics() {
 
         <div className="space-y-3">
           {getSalesByDate().map(([date, revenue], index) => {
-            const maxRevenue = Math.max(...getSalesByDate().map(([, rev]) => rev));
-            const percentage = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
+            const maxRevenue = Math.max(...getSalesByDate().map(([, rev]) => rev))
+            const percentage = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0
             
             return (
               <div key={date} className="flex items-center space-x-3">
@@ -828,11 +881,11 @@ export default function Statistics() {
                     className="bg-primary h-4 rounded-full"
                   />
                 </div>
-                <div className="w-20 text-xs text-gray-800 text-right">
+                <div className="w-20 text-xs text-gray-800 text-right font-mono">
                   Rp {revenue.toLocaleString('id-ID')}
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       </div>
@@ -860,17 +913,17 @@ export default function Statistics() {
               
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">{getTopProducts()[0]?.count || 0}</p>
+                  <p className="text-2xl font-bold text-primary font-mono">{getTopProducts()[0]?.count || 0}</p>
                   <p className="text-xs text-gray-600">Unit Terjual</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-green-600 font-mono">
                     Rp {(getTopProducts()[0]?.revenue || 0).toLocaleString('id-ID')}
                   </p>
                   <p className="text-xs text-gray-600">Total Revenue</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{getTopProducts()[0]?.transactions || 0}</p>
+                  <p className="text-2xl font-bold text-blue-600 font-mono">{getTopProducts()[0]?.transactions || 0}</p>
                   <p className="text-xs text-gray-600">Transaksi</p>
                 </div>
               </div>
@@ -915,10 +968,10 @@ export default function Statistics() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-success">
+                        <p className="font-bold text-success font-mono">
                           Rp {product.revenue.toLocaleString('id-ID')}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 font-mono">
                           {((product.revenue / getTotalRevenue()) * 100).toFixed(1)}% dari total
                         </p>
                       </div>
@@ -982,7 +1035,7 @@ export default function Statistics() {
                       <DollarSign className="w-4 h-4 text-green-600" />
                       <span className="text-sm font-medium text-green-800">Total Pendapatan</span>
                     </div>
-                    <p className="text-lg font-bold text-green-700">
+                    <p className="text-lg font-bold text-green-700 font-mono">
                       Rp {getBusiestDayDetails().totalRevenue.toLocaleString('id-ID')}
                     </p>
                   </div>
@@ -991,7 +1044,7 @@ export default function Statistics() {
                       <ShoppingCart className="w-4 h-4 text-blue-600" />
                       <span className="text-sm font-medium text-blue-800">Total Transaksi</span>
                     </div>
-                    <p className="text-lg font-bold text-blue-700">
+                    <p className="text-lg font-bold text-blue-700 font-mono">
                       {getBusiestDayDetails().totalTransactions}
                     </p>
                   </div>
@@ -1015,7 +1068,7 @@ export default function Statistics() {
                             <p className="text-xs text-gray-600">{product.count} terjual</p>
                           </div>
                         </div>
-                        <p className="font-bold text-success">
+                        <p className="font-bold text-success font-mono">
                           Rp {product.revenue.toLocaleString('id-ID')}
                         </p>
                       </div>
@@ -1033,25 +1086,25 @@ export default function Statistics() {
                     {getAISuggestions().map((suggestion, index) => {
                       const getIcon = (type) => {
                         switch (type) {
-                          case 'schedule': return <Clock className="w-4 h-4" />;
-                          case 'product': return <Package className="w-4 h-4" />;
-                          case 'pricing': return <TrendingUp className="w-4 h-4" />;
-                          case 'volume': return <TrendingDown className="w-4 h-4" />;
-                          case 'diversity': return <Target className="w-4 h-4" />;
-                          default: return <Lightbulb className="w-4 h-4" />;
+                          case 'schedule': return <Clock className="w-4 h-4" />
+                          case 'product': return <Package className="w-4 h-4" />
+                          case 'pricing': return <TrendingUp className="w-4 h-4" />
+                          case 'volume': return <TrendingDown className="w-4 h-4" />
+                          case 'diversity': return <Target className="w-4 h-4" />
+                          default: return <Lightbulb className="w-4 h-4" />
                         }
-                      };
+                      }
 
                       const getColor = (type) => {
                         switch (type) {
-                          case 'schedule': return 'text-blue-600 bg-blue-50 border-blue-200';
-                          case 'product': return 'text-green-600 bg-green-50 border-green-200';
-                          case 'pricing': return 'text-purple-600 bg-purple-50 border-purple-200';
-                          case 'volume': return 'text-orange-600 bg-orange-50 border-orange-200';
-                          case 'diversity': return 'text-pink-600 bg-pink-50 border-pink-200';
-                          default: return 'text-gray-600 bg-gray-50 border-gray-200';
+                          case 'schedule': return 'text-blue-600 bg-blue-50 border-blue-200'
+                          case 'product': return 'text-green-600 bg-green-50 border-green-200'
+                          case 'pricing': return 'text-purple-600 bg-purple-50 border-purple-200'
+                          case 'volume': return 'text-orange-600 bg-orange-50 border-orange-200'
+                          case 'diversity': return 'text-pink-600 bg-pink-50 border-pink-200'
+                          default: return 'text-gray-600 bg-gray-50 border-gray-200'
                         }
-                      };
+                      }
 
                       return (
                         <motion.div
@@ -1071,7 +1124,7 @@ export default function Statistics() {
                             </div>
                           </div>
                         </motion.div>
-                      );
+                      )
                     })}
                   </div>
                 </div>
@@ -1080,10 +1133,11 @@ export default function Statistics() {
           </motion.div>
         </motion.div>
       )}
+
     </div>
-  );
+  )
   } catch (error) {
-    console.error('Error in Statistics component:', error);
+    console.error('Error in Statistics component:', error)
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1098,6 +1152,6 @@ export default function Statistics() {
           </button>
         </div>
       </div>
-    );
+    )
   }
 }

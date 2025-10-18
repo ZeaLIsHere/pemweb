@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Store, Wifi, WifiOff, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Store, Wifi, WifiOff, Clock } from 'lucide-react'
 
-export default function LoadingStoreIndicator({ isLoading }) {
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState('Memuat toko...');
+export default function LoadingStoreIndicator ({ isLoading }) {
+  const [progress, setProgress] = useState(0)
+  const [message, setMessage] = useState('Memuat toko...')
 
   useEffect(() => {
-    if (!isLoading) return;
+    if (!isLoading) return
 
     const messages = [
       'Memuat toko...',
@@ -15,21 +15,21 @@ export default function LoadingStoreIndicator({ isLoading }) {
       'Memeriksa permissions...',
       'Mencoba mode fallback...',
       'Menggunakan data lokal...'
-    ];
+    ]
 
-    let currentStep = 0;
+    let currentStep = 0
     const interval = setInterval(() => {
-      currentStep++;
+      currentStep++
       if (currentStep < messages.length) {
-        setMessage(messages[currentStep]);
-        setProgress((currentStep / messages.length) * 100);
+        setMessage(messages[currentStep])
+        setProgress((currentStep / messages.length) * 100)
       }
-    }, 1000);
+    }, 1000)
 
-    return () => clearInterval(interval);
-  }, [isLoading]);
+    return () => clearInterval(interval)
+  }, [isLoading])
 
-  if (!isLoading) return null;
+  if (!isLoading) return null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -144,5 +144,5 @@ export default function LoadingStoreIndicator({ isLoading }) {
         </div>
       </motion.div>
     </div>
-  );
+  )
 }

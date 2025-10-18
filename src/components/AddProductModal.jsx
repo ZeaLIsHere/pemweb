@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Package } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Package } from 'lucide-react'
+import { collection, addDoc } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import { useNotification } from '../contexts/NotificationContext'
 
-export default function AddProductModal({ onClose, userId }) {
+export default function AddProductModal ({ onClose, userId }) {
+  const { notifyProductAdded } = useNotification()
   const [formData, setFormData] = useState({
     nama: '',
     harga: '',
@@ -12,24 +14,25 @@ export default function AddProductModal({ onClose, userId }) {
     kategori: '',
     batchSize: '',
     satuan: 'pcs'
-  });
-  const [loading, setLoading] = useState(false);
+  })
+  const [loading, setLoading] = useState(false)
 
   const satuanOptions = [
     'pcs', 'kg', 'gram', 'liter', 'ml', 'pack', 'box', 'karton', 'renteng', 'lusin'
-  ];
+  ]
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
+
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
       await addDoc(collection(db, 'products'), {
@@ -39,17 +42,24 @@ export default function AddProductModal({ onClose, userId }) {
         kategori: formData.kategori || 'Umum',
         batchSize: formData.batchSize ? parseInt(formData.batchSize) : 1,
         satuan: formData.satuan,
-        userId: userId,
+        userId,
         createdAt: new Date()
-      });
-      onClose();
+      })
+
+      // Send product added notification
+      notifyProductAdded(formData.nama, () => {
+        // Navigate to stock page to view the new product
+        console.log('View new product')
+      })
+
+      onClose()
     } catch (error) {
-      console.error('Error adding product:', error);
-      alert('Gagal menambahkan produk');
+      console.error('Error adding product:', error)
+      alert('Gagal menambahkan produk')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
     <AnimatePresence>
@@ -206,5 +216,5 @@ export default function AddProductModal({ onClose, userId }) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  )
 }

@@ -1,12 +1,10 @@
 {
-  "functions": {
-    "api/analytics.js": {
-      "runtime": "nodejs18.x"
-    }
+  "env": {
+    "DISABLE_PWA": "true"
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "(.*)",
       "destination": "/index.html"
     }
   ]

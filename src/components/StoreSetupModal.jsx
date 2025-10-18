@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import { validateStoreData, testFirebaseConnection } from '../utils/firebaseTest';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, addDoc } from 'firebase/firestore'
+import { validateStoreData } from '../utils/firebaseTest'
 import { 
   Store, 
   MapPin, 
@@ -13,11 +13,13 @@ import {
   Building,
   User,
   CheckCircle
-} from 'lucide-react';
+} from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
 
-export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
-  const { currentUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+export default function StoreSetupModal ({ isOpen, onComplete, userEmail }) {
+  const { currentUser } = useAuth()
+  const { showSuccess, showError, showWarning } = useToast()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     storeName: '',
     ownerName: '',
@@ -25,31 +27,31 @@ export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
     phone: '',
     email: userEmail || '',
     description: ''
-  });
+  })
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+    e.preventDefault()
+    setLoading(true)
+    let storeDataWithTimestamp = null
     try {
       // Validate current user
       if (!currentUser || !currentUser.uid) {
-        throw new Error('User tidak terautentikasi. Silakan login ulang.');
+        throw new Error('User tidak terautentikasi. Silakan login ulang.')
       }
 
       // Validate required fields
       if (!formData.storeName?.trim() || !formData.ownerName?.trim() || !formData.address?.trim()) {
-        alert('Mohon lengkapi semua field yang wajib diisi (*)');
-        setLoading(false);
-        return;
+        showWarning('Mohon lengkapi semua field yang wajib diisi (*)')
+        setLoading(false)
+        return
       }
 
       // Sanitize and validate data
@@ -65,73 +67,56 @@ export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
         totalProducts: 0,
         totalSales: 0,
         totalRevenue: 0
-      };
+      }
 
       // Add timestamp and validate data
-      const storeDataWithTimestamp = {
+      storeDataWithTimestamp = {
         ...sanitizedData,
         createdAt: new Date()
-      };
+      }
       
       // Validate data before sending
-      const validation = validateStoreData(storeDataWithTimestamp);
+      const validation = validateStoreData(storeDataWithTimestamp)
       if (!validation.isValid) {
-        throw new Error(`Data validation failed: ${validation.errors.join(', ')}`);
+        throw new Error(`Data validation failed: ${validation.errors.join(', ')}`)
       }
-      
-      console.log('Creating store with validated data:', storeDataWithTimestamp);
-      console.log('Current user UID:', currentUser.uid);
       
       // Try creating the store document
-      const docRef = await addDoc(collection(db, 'stores'), storeDataWithTimestamp);
-      
-      console.log('Store created successfully with ID:', docRef.id);
-
-      // Show success message
-      alert('✅ Toko berhasil dibuat! Selamat datang di DagangCerdas.');
-
-      // Call completion callback
-      onComplete();
+  await addDoc(collection(db, 'stores'), storeDataWithTimestamp)
+  showSuccess(`Toko berhasil dibuat: ${sanitizedData.storeName}`)
+      onComplete()
     } catch (error) {
-      console.error('Detailed error creating store:', {
-        error: error,
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      
-      let errorMessage = 'Terjadi kesalahan saat membuat toko.';
-      
+      console.error('Detailed error creating store:', error)
+
       if (error.code === 'permission-denied') {
-        errorMessage = 'Firestore permissions belum dikonfigurasi. Menggunakan mode offline sementara.';
-        
-        // Fallback: Save to localStorage as temporary solution
+        // Save fallback to localStorage
         const tempStoreData = {
-          ...storeDataWithTimestamp,
-          id: 'temp-' + Date.now(),
+          ...(storeDataWithTimestamp || {}),
+          id: `temp-${Date.now()}`,
           isTemporary: true
-        };
-        
-        localStorage.setItem('tempStore', JSON.stringify(tempStoreData));
-        console.log('Store saved to localStorage as fallback:', tempStoreData);
-        
-        alert('✅ Toko berhasil dibuat (mode offline)! Data akan disinkronkan ketika koneksi tersedia.');
-        onComplete();
-        return;
-        
-      } else if (error.code === 'invalid-argument') {
-        errorMessage = 'Data yang dikirim tidak valid. Periksa format data.';
-      } else if (error.message) {
-        errorMessage = error.message;
+        }
+
+        localStorage.setItem('tempStore', JSON.stringify(tempStoreData))
+        console.warn('Store saved to localStorage as fallback:', tempStoreData)
+        showWarning('Toko dibuat dalam mode offline. Data akan disinkronkan saat online.')
+        onComplete()
+        setLoading(false)
+        return
       }
-      
-      alert(`❌ Gagal membuat toko: ${errorMessage}`);
+
+      if (error.code === 'invalid-argument') {
+        showError('Data yang dikirim tidak valid. Periksa format data.')
+      } else if (error.message) {
+        showError(`Gagal membuat toko: ${error.message}`)
+      } else {
+        showError('Gagal membuat toko. Silakan coba lagi.')
+      }
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
-  const isFormValid = formData.storeName && formData.ownerName && formData.address;
+  const isFormValid = formData.storeName && formData.ownerName && formData.address
 
   return (
     <AnimatePresence>
@@ -300,7 +285,7 @@ export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
             <div className="px-6 pb-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-700">
-                  <strong>💡 Tips:</strong> Setelah toko dibuat, Anda dapat langsung menambah produk dan mulai mencatat penjualan. Data toko dapat diubah kapan saja di menu Pengaturan.
+                  <strong>💡 Tips:</strong> Setelah toko dibuat, Anda dapat langsung menambah produk dan mulai mencatat penjualan. Data toko dapat diubah kapan saja di menu Status Langganan.
                 </p>
               </div>
             </div>
@@ -308,5 +293,5 @@ export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }

@@ -1,63 +1,65 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
-import { useCart } from '../contexts/CartContext';
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
+import { useCart } from '../contexts/CartContext'
+import { useNotification } from '../contexts/NotificationContext'
+import { useStore } from '../contexts/StoreContext'
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import storeStatsService from '../services/storeStatsService'
 
-export default function CheckoutModal({ onClose, userId }) {
-  const { cart, getTotalPrice, getTotalItems, clearCart } = useCart();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('tunai');
-  const [transactionData, setTransactionData] = useState(null);
+export default function CheckoutModal ({ onClose, userId }) {
+  const { cart, getTotalPrice, getTotalItems, clearCart } = useCart()
+  const { notifyStockOut, notifyLowStock, notifyTransactionSuccess } = useNotification()
+  const { currentStore } = useStore()
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('tunai')
+  const [transactionData, setTransactionData] = useState(null)
 
-  // Collective Shopping Demo Function
-  const checkCollectiveShoppingOpportunity = async (soldItems) => {
-    const stockThreshold = 5; // Hardcoded threshold as per spec
-    
+  // Check stock levels and send notifications
+  const checkStockLevelsAndNotify = async (soldItems) => {
     try {
-      // Check each sold item for low stock after sale
       for (const item of soldItems) {
-        const productRef = doc(db, 'products', item.id);
-        const productSnap = await getDoc(productRef);
+        // Get current stock after update
+        const productRef = doc(db, 'products', item.id)
+        const productSnap = await getDoc(productRef)
         
         if (productSnap.exists()) {
-          const currentStock = productSnap.data().stok || 0;
+          const productData = productSnap.data()
+          const currentStock = productData.stok || 0
           
-          // Check if stock is at or below threshold and still above 0
-          if (currentStock <= stockThreshold && currentStock > 0) {
-            // Generate pseudo-random data for demo
-            const interestedMerchants = Math.floor(Math.random() * 36) + 15; // 15-50 merchants
-            const productName = item.nama;
-            
-            // Format offer message
-            const offerMessage = `🛒 PENAWARAN BELANJA KOLEKTIF!\n\n` +
-              `Produk: ${productName}\n` +
-              `Stok tersisa: ${currentStock} unit\n` +
-              `${interestedMerchants} pedagang lain tertarik untuk pembelian kolektif!\n\n` +
-              `Bergabung sekarang untuk mendapatkan harga grosir yang lebih murah!`;
-            
-            // Show alert with delay for better UX (as per spec)
-            setTimeout(() => {
-              alert(offerMessage);
-            }, 500);
-            
-            // Only show one offer per checkout to avoid spam
-            break;
+          // Create product object for notifications
+          const product = {
+            id: item.id,
+            nama: item.nama,
+            stok: currentStock,
+            satuan: productData.satuan || 'pcs'
+          }
+          
+          // Send notifications based on stock level
+          if (currentStock === 0) {
+            notifyStockOut(product, () => {
+              // Navigate to stock page
+              window.location.href = '/stock'
+            })
+          } else if (currentStock <= 5) {
+            notifyLowStock(product, () => {
+              // Navigate to stock page
+              window.location.href = '/stock'
+            })
           }
         }
       }
     } catch (error) {
-      console.error('Error checking collective shopping opportunity:', error);
-      // Fail silently as this is a demo feature
+      console.error('Error checking stock levels:', error)
     }
-  };
+  }
 
   const handleCheckout = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
 
     try {
       // Save transaction data before clearing cart
@@ -65,27 +67,27 @@ export default function CheckoutModal({ onClose, userId }) {
         items: cart.items,
         totalPrice: getTotalPrice(),
         totalItems: getTotalItems(),
-        paymentMethod: paymentMethod
-      };
-      setTransactionData(currentTransactionData);
+        paymentMethod
+      }
+      setTransactionData(currentTransactionData)
 
       // Simulate processing delay for QRIS (more realistic)
       if (paymentMethod === 'qris') {
-        await new Promise(resolve => setTimeout(resolve, 1000)); //  delay
+        await new Promise(resolve => setTimeout(resolve, 1000)) //  delay
       }
       // 1. Update stok produk
       const updatePromises = cart.items.map(async (item) => {
-        const productRef = doc(db, 'products', item.id);
+        const productRef = doc(db, 'products', item.id)
         await updateDoc(productRef, {
           stok: increment(-item.quantity)
-        });
-      });
+        })
+      })
 
-      await Promise.all(updatePromises);
+      await Promise.all(updatePromises)
 
       // Simpan transaksi ke collection 'sales' untuk konsistensi dengan Dashboard
       await addDoc(collection(db, 'sales'), {
-        userId: userId,
+        userId,
         items: cart.items.map(item => ({
           productId: item.id,
           nama: item.nama,
@@ -96,15 +98,15 @@ export default function CheckoutModal({ onClose, userId }) {
         price: getTotalPrice(), // Field name konsisten dengan Dashboard
         totalAmount: getTotalPrice(), // Field name konsisten dengan TodayRevenue
         totalItems: getTotalItems(),
-        paymentMethod: paymentMethod,
+        paymentMethod,
         timestamp: serverTimestamp(), // Field name konsisten dengan filter
         createdAt: serverTimestamp(),
         status: 'completed'
-      });
+      })
 
       // Juga simpan ke collection 'transactions' untuk TodayRevenue
       await addDoc(collection(db, 'transactions'), {
-        userId: userId,
+        userId,
         items: cart.items.map(item => ({
           productId: item.id,
           nama: item.nama,
@@ -114,45 +116,58 @@ export default function CheckoutModal({ onClose, userId }) {
         })),
         totalAmount: getTotalPrice(),
         totalItems: getTotalItems(),
-        paymentMethod: paymentMethod,
+        paymentMethod,
         timestamp: serverTimestamp(),
         createdAt: serverTimestamp(),
         status: 'completed'
-      });
+      })
 
-      // Clear cart dan show success
-      clearCart();
-      setSuccess(true);
+      // Update store statistics
+      if (userId) {
+        await storeStatsService.updateStoreStats(userId, {
+          totalAmount: getTotalPrice(),
+          price: getTotalPrice()
+        })
+      }
+
+      // Check stock levels and send notifications
+      await checkStockLevelsAndNotify(cart.items)
       
-      // Trigger collective shopping check after stock update
-      checkCollectiveShoppingOpportunity(cart.items);
+      // Send transaction success notification
+      notifyTransactionSuccess(getTotalPrice(), paymentMethod, () => {
+        // Navigate to statistics or transaction history
+        console.log('View transaction details')
+      })
+      
+      // Clear cart dan show success
+      clearCart()
+      setSuccess(true)
       
       // Auto close
       setTimeout(() => {
-        onClose();
-      }, 3000);
+        onClose()
+      }, 3000)
 
     } catch (error) {
-      console.error('Checkout error:', error);
-      // untuk demo, payment selalu sukses
+      console.error('Checkout error:', error)
       // Save transaction data before clearing cart (for error case too)
       if (!transactionData) {
         setTransactionData({
           items: cart.items,
           totalPrice: getTotalPrice(),
           totalItems: getTotalItems(),
-          paymentMethod: paymentMethod
-        });
+          paymentMethod
+        })
       }
-      clearCart();
-      setSuccess(true);
+      clearCart()
+      setSuccess(true)
       setTimeout(() => {
-        onClose();
-      }, 3000);
+        onClose()
+      }, 3000)
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   if (success) {
     return (
@@ -239,7 +254,7 @@ export default function CheckoutModal({ onClose, userId }) {
           </motion.div>
         </motion.div>
       </AnimatePresence>
-    );
+    )
   }
 
   return (
@@ -354,15 +369,15 @@ export default function CheckoutModal({ onClose, userId }) {
                 {/* QRIS Code Display */}
                 {paymentMethod === 'qris' && (
                   <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg text-center">
-                    <p className="text-sm text-gray-600 mb-3">Scan QR Code di bawah untuk pembayaran</p>
+                    <p className="text-sm text-gray-600 mb-3">Berikan QR Code kepada pembeli untuk melakukan pembayaran</p>
                     <div className="flex justify-center">
                       <img 
                         src="/qris.jpg" 
                         alt="QRIS Payment Code" 
                         className="w-64 h-auto rounded-lg shadow-md"
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
+                          e.target.style.display = 'none'
+                          e.target.nextSibling.style.display = 'block'
                         }}
                       />
                       <div className="hidden p-8 bg-gray-100 rounded-lg">
@@ -412,5 +427,5 @@ export default function CheckoutModal({ onClose, userId }) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  )
 }

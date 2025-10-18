@@ -1,62 +1,73 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Bell, AlertTriangle, TrendingUp, Package, Star, Calendar, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useNotification } from '../contexts/NotificationContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
+import { Bell, AlertTriangle, TrendingUp, Package, Star, Calendar, ChevronRight } from 'lucide-react'
+import PromotionModal from '../components/PromotionModal'
 
-export default function Notifications() {
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Notifications () {
+  const { currentUser } = useAuth()
+  const { markAllAsRead, _notifyStockOut, _notifyLowStock } = useNotification()
+  const navigate = useNavigate()
+  const [products, setProducts] = useState([])
+  const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showPromotionModal, setShowPromotionModal] = useState(false)
+  const [highStockProductsState, setHighStockProductsState] = useState([])
+  const [selectedProductId, setSelectedProductId] = useState(null)
+
+  // Mark all notifications as read when page is visited
+  useEffect(() => {
+    markAllAsRead()
+  }, [markAllAsRead])
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     // Listen to products
     const productsQuery = query(
       collection(db, 'products'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
       const productsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-      setProducts(productsData);
-      setLoading(false);
-    });
+      }))
+      setProducts(productsData)
+      setLoading(false)
+    })
 
     // Listen to sales
     const salesQuery = query(
       collection(db, 'sales'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
       const salesData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-      setSales(salesData);
-    });
+      }))
+      setSales(salesData)
+    })
 
     return () => {
-      unsubscribeProducts();
-      unsubscribeSales();
-    };
-  }, [currentUser]);
+      unsubscribeProducts()
+      unsubscribeSales()
+    }
+  }, [currentUser])
 
   const notifications = useMemo(() => {
-    const notifs = [];
+    const notifs = []
 
     // Stock alerts
-    const outOfStock = products.filter(p => p.stok === 0);
-    const lowStock = products.filter(p => p.stok > 0 && p.stok <= 5);
+    const outOfStock = products.filter(p => p.stok === 0)
+    const lowStock = products.filter(p => p.stok > 0 && p.stok <= 5)
 
     outOfStock.forEach(product => {
       notifs.push({
@@ -70,8 +81,8 @@ export default function Notifications() {
         actionable: true,
         actionText: 'Ke Halaman Stok',
         action: () => navigate('/stock')
-      });
-    });
+      })
+    })
 
     lowStock.forEach(product => {
       notifs.push({
@@ -83,32 +94,32 @@ export default function Notifications() {
         time: 'Sekarang',
         priority: 2,
         actionable: false // Tidak ada action untuk stok menipis
-      });
-    });
+      })
+    })
 
     // Sales insights
     if (sales.length > 0) {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgo = new Date()
+      weekAgo.setDate(weekAgo.getDate() - 7)
       
       const recentSales = sales.filter(sale => {
-        const saleDate = sale.timestamp?.toDate();
-        return saleDate && saleDate >= weekAgo;
-      });
+        const saleDate = sale.timestamp?.toDate()
+        return saleDate && saleDate >= weekAgo
+      })
 
       if (recentSales.length > 0) {
         // Best selling product
-        const productSales = {};
+        const productSales = {}
         recentSales.forEach(sale => {
-          productSales[sale.productId] = (productSales[sale.productId] || 0) + 1;
-        });
+          productSales[sale.productId] = (productSales[sale.productId] || 0) + 1
+        })
 
         const bestSellingProductId = Object.keys(productSales).reduce((a, b) => 
           productSales[a] > productSales[b] ? a : b
-        );
+        )
 
-        const bestSellingProduct = products.find(p => p.id === bestSellingProductId);
-        const bestSellingCount = productSales[bestSellingProductId];
+        const bestSellingProduct = products.find(p => p.id === bestSellingProductId)
+        const bestSellingCount = productSales[bestSellingProductId]
 
         if (bestSellingProduct && bestSellingCount > 3) {
           notifs.push({
@@ -119,22 +130,22 @@ export default function Notifications() {
             message: `${bestSellingProduct.nama} terjual ${bestSellingCount}x minggu ini`,
             time: '1 hari lalu',
             priority: 1
-          });
+          })
         }
 
         // Daily sales trend
-        const today = new Date();
+        const today = new Date()
         const todaySales = sales.filter(sale => {
-          const saleDate = sale.timestamp?.toDate();
-          return saleDate && saleDate.toDateString() === today.toDateString();
-        });
+          const saleDate = sale.timestamp?.toDate()
+          return saleDate && saleDate.toDateString() === today.toDateString()
+        })
 
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterday = new Date()
+        yesterday.setDate(yesterday.getDate() - 1)
         const yesterdaySales = sales.filter(sale => {
-          const saleDate = sale.timestamp?.toDate();
-          return saleDate && saleDate.toDateString() === yesterday.toDateString();
-        });
+          const saleDate = sale.timestamp?.toDate()
+          return saleDate && saleDate.toDateString() === yesterday.toDateString()
+        })
 
         if (todaySales.length > yesterdaySales.length && todaySales.length > 5) {
           notifs.push({
@@ -145,14 +156,14 @@ export default function Notifications() {
             message: `Hari ini ${todaySales.length} penjualan, kemarin ${yesterdaySales.length}`,
             time: '2 jam lalu',
             priority: 1
-          });
+          })
         }
       }
     }
 
     // Business suggestions
     if (products.length > 0) {
-      const highStockProducts = products.filter(p => p.stok > 50);
+      const highStockProducts = products.filter(p => p.stok > 50)
       if (highStockProducts.length > 0) {
         notifs.push({
           id: 'high-stock',
@@ -161,55 +172,64 @@ export default function Notifications() {
           title: 'Saran Bisnis',
           message: `${highStockProducts.length} produk memiliki stok berlebih. Pertimbangkan promosi.`,
           time: '1 hari lalu',
-          priority: 1
-        });
+          priority: 1,
+          actionable: true,
+          actionText: 'Buat Promosi',
+          action: () => {
+            setHighStockProductsState(highStockProducts)
+            if (highStockProducts.length > 0) {
+              setSelectedProductId(highStockProducts[0].id)
+            }
+            setShowPromotionModal(true)
+          }
+        })
       }
     }
 
     // Sort by priority (higher first) then by type
     return notifs.sort((a, b) => {
-      if (a.priority !== b.priority) return b.priority - a.priority;
-      const typeOrder = { error: 3, warning: 2, success: 1, info: 0 };
-      return typeOrder[b.type] - typeOrder[a.type];
-    });
-  }, [products, sales]);
+      if (a.priority !== b.priority) return b.priority - a.priority
+      const typeOrder = { error: 3, warning: 2, success: 1, info: 0 }
+      return typeOrder[b.type] - typeOrder[a.type]
+    })
+  }, [products, sales, navigate])
 
   const getNotificationStyle = (type) => {
     switch (type) {
       case 'error':
-        return 'border-red-200 bg-red-50';
+        return 'border-red-200 bg-red-50'
       case 'warning':
-        return 'border-yellow-200 bg-yellow-50';
+        return 'border-yellow-200 bg-yellow-50'
       case 'success':
-        return 'border-green-200 bg-green-50';
+        return 'border-green-200 bg-green-50'
       case 'info':
-        return 'border-blue-200 bg-blue-50';
+        return 'border-blue-200 bg-blue-50'
       default:
-        return 'border-gray-200 bg-gray-50';
+        return 'border-gray-200 bg-gray-50'
     }
-  };
+  }
 
   const getIconColor = (type) => {
     switch (type) {
       case 'error':
-        return 'text-red-600';
+        return 'text-red-600'
       case 'warning':
-        return 'text-yellow-600';
+        return 'text-yellow-600'
       case 'success':
-        return 'text-green-600';
+        return 'text-green-600'
       case 'info':
-        return 'text-blue-600';
+        return 'text-blue-600'
       default:
-        return 'text-gray-600';
+        return 'text-gray-600'
     }
-  };
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -271,10 +291,10 @@ export default function Notifications() {
       ) : (
         <div className="space-y-3">
           {notifications.map((notification, index) => {
-            const Icon = notification.icon;
+            const Icon = notification.icon
             
             return (
-              <motion.div
+                <motion.div
                 key={notification.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -283,7 +303,7 @@ export default function Notifications() {
                   notification.actionable ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
                 }`}
                 onClick={notification.actionable ? notification.action : undefined}
-              >
+                >
                 <div className="flex items-start space-x-3">
                   <div className={`flex-shrink-0 ${getIconColor(notification.type)}`}>
                     <Icon size={20} />
@@ -309,10 +329,22 @@ export default function Notifications() {
                   </div>
                 </div>
               </motion.div>
-            );
+            )
           })}
         </div>
       )}
+
+      {/* Promotion Modal */}
+      <PromotionModal
+        isOpen={showPromotionModal}
+        onClose={() => {
+          setShowPromotionModal(false)
+          setSelectedProductId(null)
+        }}
+        highStockProducts={highStockProductsState}
+        popularProducts={products.filter(p => !highStockProductsState.some(hp => hp.id === p.id))}
+        currentUser={currentUser}
+      />
 
       {/* Quick Actions */}
       {notifications.some(n => n.type === 'error' || n.type === 'warning') && (
@@ -325,7 +357,7 @@ export default function Notifications() {
             {notifications.filter(n => n.type === 'error').length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-700 font-medium mb-1">🚨 Stok Habis - Perlu Tindakan Segera</p>
-                <p className="text-red-600">Klik notifikasi "Stok Habis" untuk langsung ke halaman Stok dan tambah inventory.</p>
+                <p className="text-red-600">Klik notifikasi &quot;Stok Habis&quot; untuk langsung ke halaman Stok dan tambah inventory.</p>
               </div>
             )}
             {notifications.filter(n => n.type === 'warning').length > 0 && (
@@ -336,11 +368,11 @@ export default function Notifications() {
             )}
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 font-medium mb-1">💡 Tips</p>
-              <p className="text-blue-600">Hanya notifikasi "Stok Habis" yang bisa diklik untuk tindakan langsung.</p>
+              <p className="text-blue-600">Hanya notifikasi &quot;Stok Habis&quot; yang bisa diklik untuk tindakan langsung.</p>
             </div>
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }

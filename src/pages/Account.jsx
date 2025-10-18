@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { useStore } from '../contexts/StoreContext';
+import React, { useState } from 'react'
+import { motion } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { useStore } from '../contexts/StoreContext'
 import { 
   User, 
   Mail, 
@@ -17,100 +17,100 @@ import {
   MapPin,
   Phone,
   Building
-} from 'lucide-react';
+} from 'lucide-react'
 
-export default function Account() {
-  const { currentUser, changePassword } = useAuth();
-  const { currentStore, stores } = useStore();
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+export default function Account () {
+  const { currentUser, changePassword } = useAuth()
+  const { currentStore, stores, storeStats } = useStore()
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
-  });
+  })
 
   const handlePasswordChange = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError('Password baru dan konfirmasi password tidak cocok');
-      return;
+      setError('Password baru dan konfirmasi password tidak cocok')
+      return
     }
 
     if (passwordForm.newPassword.length < 6) {
-      setError('Password baru minimal 6 karakter');
-      return;
+      setError('Password baru minimal 6 karakter')
+      return
     }
 
     if (!passwordForm.currentPassword) {
-      setError('Password saat ini harus diisi');
-      return;
+      setError('Password saat ini harus diisi')
+      return
     }
 
-    setLoading(true);
-    setError('');
-    setMessage('');
+    setLoading(true)
+    setError('')
+    setMessage('')
 
     try {
-      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
-      setMessage('Password berhasil diubah');
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword)
+      setMessage('Password berhasil diubah')
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
-      });
+      })
       
       // Auto clear success message after 5 seconds
       setTimeout(() => {
-        setMessage('');
-      }, 5000);
+        setMessage('')
+      }, 5000)
     } catch (error) {
-      console.error('Password change error:', error);
+      console.error('Password change error:', error)
       
       // Handle specific Firebase errors
       if (error.code === 'auth/wrong-password') {
-        setError('Password saat ini salah');
+        setError('Password saat ini salah')
       } else if (error.code === 'auth/weak-password') {
-        setError('Password baru terlalu lemah');
+        setError('Password baru terlalu lemah')
       } else if (error.code === 'auth/requires-recent-login') {
-        setError('Silakan login ulang untuk mengubah password');
+        setError('Silakan login ulang untuk mengubah password')
       } else {
-        setError('Gagal mengubah password: ' + (error.message || 'Terjadi kesalahan'));
+        setError(`Gagal mengubah password: ${error.message || 'Terjadi kesalahan'}`)
       }
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   const formatDate = (date) => {
-    if (!date) return 'Tidak tersedia';
+    if (!date) return 'Tidak tersedia'
     return new Date(date).toLocaleDateString('id-ID', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    });
-  };
+    })
+  }
 
   const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0, text: '', color: '' };
+    if (!password) return { strength: 0, text: '', color: '' }
     
-    let score = 0;
-    if (password.length >= 8) score++;
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/\d/.test(password)) score++;
-    if (/[^a-zA-Z\d]/.test(password)) score++;
+    let score = 0
+    if (password.length >= 8) score++
+    if (/[a-z]/.test(password)) score++
+    if (/[A-Z]/.test(password)) score++
+    if (/\d/.test(password)) score++
+    if (/[^a-zA-Z\d]/.test(password)) score++
     
-    if (score < 2) return { strength: 1, text: 'Lemah', color: 'text-red-600' };
-    if (score < 4) return { strength: 2, text: 'Sedang', color: 'text-yellow-600' };
-    return { strength: 3, text: 'Kuat', color: 'text-green-600' };
-  };
+    if (score < 2) return { strength: 1, text: 'Lemah', color: 'text-red-600' }
+    if (score < 4) return { strength: 2, text: 'Sedang', color: 'text-yellow-600' }
+    return { strength: 3, text: 'Kuat', color: 'text-green-600' }
+  }
 
   return (
     <div className="space-y-6">
@@ -262,19 +262,19 @@ export default function Account() {
               </div>
             </div>
 
-            {/* Store Stats */}
+            {/* Store Stats - Real-time data */}
             <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="text-center p-3 bg-blue-50 rounded-lg">
                 <p className="text-2xl font-bold text-blue-600">{currentStore.totalProducts || 0}</p>
                 <p className="text-sm text-blue-700">Produk</p>
               </div>
               <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">{currentStore.totalSales || 0}</p>
+                <p className="text-2xl font-bold text-green-600">{storeStats.totalSales || 0}</p>
                 <p className="text-sm text-green-700">Penjualan</p>
               </div>
               <div className="text-center p-3 bg-purple-50 rounded-lg">
                 <p className="text-2xl font-bold text-purple-600">
-                  Rp {(currentStore.totalRevenue || 0).toLocaleString('id-ID')}
+                  Rp {(storeStats.totalRevenue || 0).toLocaleString('id-ID')}
                 </p>
                 <p className="text-sm text-purple-700">Pendapatan</p>
               </div>
@@ -297,7 +297,7 @@ export default function Account() {
             <p className="text-sm text-blue-700">
               <strong>💡 Info:</strong> Anda memiliki {stores.length} toko terdaftar. 
               Toko yang sedang aktif: <strong>{currentStore?.storeName}</strong>. 
-              Anda dapat beralih toko di menu Pengaturan.
+              Anda dapat beralih toko di menu Status Langganan.
             </p>
           </div>
         )}
@@ -479,5 +479,5 @@ export default function Account() {
         </div>
       </motion.div>
     </div>
-  );
+  )
 }

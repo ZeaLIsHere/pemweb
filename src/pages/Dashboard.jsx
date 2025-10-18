@@ -1,150 +1,157 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useCart } from '../contexts/CartContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { Plus, TrendingUp, Package, DollarSign, AlertTriangle } from 'lucide-react';
-import ProductCard from '../components/ProductCard';
-import AddProductModal from '../components/AddProductModal';
-import SalesInsights from '../components/SalesInsights';
+import React, { useState, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useCart } from '../contexts/CartContext'
+import { useToast } from '../contexts/ToastContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
+import { Plus, TrendingUp, Package, DollarSign, AlertTriangle } from 'lucide-react'
+import ProductCard from '../components/ProductCard'
+import AddProductModal from '../components/AddProductModal'
+import SalesInsights from '../components/SalesInsights'
+import StockMonitorSystem from '../components/StockMonitorSystem'
 
-export default function Dashboard() {
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const { addItem } = useCart();
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [insights, setInsights] = useState(null);
+export default function Dashboard () {
+  const { currentUser } = useAuth()
+  const navigate = useNavigate()
+  const { addItem } = useCart()
+  const { showSuccess, showError } = useToast()
+  const [products, setProducts] = useState([])
+  const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [_insights, _setInsights] = useState(null)
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     // Listen to products
     const productsQuery = query(
       collection(db, 'products'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
       try {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
-        setProducts(productsData);
-        setLoading(false);
+        }))
+        setProducts(productsData)
+        setLoading(false)
       } catch (error) {
-        console.error('Error processing products data:', error);
-        setLoading(false);
+        console.error('Error processing products data:', error)
+        setLoading(false)
       }
     }, (error) => {
-      console.error('Error fetching products:', error);
-      setProducts([]);
-      setLoading(false);
-    });
+      console.error('Error fetching products:', error)
+      setProducts([])
+      setLoading(false)
+    })
 
     // Listen to sales
     const salesQuery = query(
       collection(db, 'sales'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
       try {
         const salesData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
-        setSales(salesData);
+        }))
+        setSales(salesData)
       } catch (error) {
-        console.error('Error processing sales data:', error);
-        setSales([]);
+        console.error('Error processing sales data:', error)
+        setSales([])
       }
     }, (error) => {
-      console.error('Error fetching sales:', error);
-      setSales([]);
-    });
+      console.error('Error fetching sales:', error)
+      setSales([])
+    })
 
     return () => {
-      unsubscribeProducts();
-      unsubscribeSales();
-    };
-  }, [currentUser]);
+      unsubscribeProducts()
+      unsubscribeSales()
+    }
+  }, [currentUser])
 
-  const handleSell = (product) => {
-    console.log('handleSell called with product:', product);
+
+  const handleSell = useCallback((product) => {
+    if (!product) {
+      showError('Produk tidak valid')
+      showError('Produk tidak valid')
+      return
+    }
     
     if (product.stok <= 0) {
-      alert('Stok habis!');
-      return;
+      showError('Stok habis!')
+      return
     }
 
     try {
       // Add product to cart with quantity 1
-      console.log('Adding item to cart...');
       addItem({
         id: product.id,
         nama: product.nama,
         harga: product.harga,
         satuan: product.satuan || 'pcs'
-      });
-      
-      console.log('Item added, navigating to cashier...');
+      })
+      showSuccess(`${product.nama} ditambahkan ke keranjang!`)
       // Navigate to cashier page
-      navigate('/cashier');
+      navigate('/cashier')
     } catch (error) {
-      console.error('Error in handleSell:', error);
+      console.error('Error in handleSell:', error)
+      showError('Terjadi kesalahan saat menambahkan produk ke keranjang')
     }
-  };
+  }, [addItem, navigate, showSuccess, showError])
 
-  const getTotalRevenue = () => {
-    return sales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
-  };
+  const _getTotalRevenue = () => {
+    return sales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0)
+  }
 
   const getTodayRevenue = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
 
     return sales.filter(sale => {
-      if (!sale.timestamp) return false;
-      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp);
-      return saleDate >= today && saleDate < tomorrow;
-    }).reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
-  };
+      if (!sale.timestamp) return false
+      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp)
+      return saleDate >= today && saleDate < tomorrow
+    }).reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0)
+  }
 
   const getTodayTransactions = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
 
     return sales.filter(sale => {
-      if (!sale.timestamp) return false;
-      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp);
-      return saleDate >= today && saleDate < tomorrow;
-    }).length;
-  };
+      if (!sale.timestamp) return false
+      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp)
+      return saleDate >= today && saleDate < tomorrow
+    }).length
+  }
 
   const getTotalProducts = () => {
-    return products.length;
-  };
+    return products.length
+  }
 
   const getLowStockProducts = () => {
-    return products.filter(product => product.stok <= 5);
-  };
+    return products.filter(product => product.stok <= 5)
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -165,8 +172,8 @@ export default function Dashboard() {
           onClick={() => navigate('/today-revenue')}
         >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(52, 199, 89, 0.1)' }}>
+              <DollarSign className="w-5 h-5" style={{ color: 'var(--color-secondary)' }} />
             </div>
             <div>
               <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Total Pendapatan Hari Ini</p>
@@ -184,12 +191,12 @@ export default function Dashboard() {
           className="card"
         >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 122, 255, 0.1)' }}>
+              <Package className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Produk</p>
-              <p className="text-lg font-bold text-secondary">{getTotalProducts()}</p>
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Total Produk</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>{getTotalProducts()}</p>
             </div>
           </div>
         </motion.div>
@@ -201,12 +208,12 @@ export default function Dashboard() {
           className="card"
         >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(255, 122, 0, 0.1)' }}>
+              <TrendingUp className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Penjualan Hari Ini</p>
-              <p className="text-lg font-bold text-secondary">
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Penjualan Hari Ini</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
                 {getTodayTransactions()} transaksi
               </p>
             </div>
@@ -220,12 +227,12 @@ export default function Dashboard() {
           className="card"
         >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
+              <AlertTriangle className="w-5 h-5" style={{ color: 'var(--color-error)' }} />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Stok Menipis</p>
-              <p className="text-lg font-bold text-secondary">{getLowStockProducts().length}</p>
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Stok Menipis</p>
+              <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>{getLowStockProducts().length}</p>
             </div>
           </div>
         </motion.div>
@@ -233,6 +240,7 @@ export default function Dashboard() {
 
       {/* Sales Insights */}
       <SalesInsights sales={sales} products={products} />
+
 
       {/* Products Section */}
       <div className="flex items-center justify-between">
@@ -284,6 +292,10 @@ export default function Dashboard() {
           userId={currentUser.uid}
         />
       )}
+
+
+      {/* Stock Monitor System */}
+      <StockMonitorSystem />
     </div>
-  );
+  )
 }

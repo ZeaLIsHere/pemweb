@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { 
   X, 
   Package, 
   MapPin, 
-  DollarSign,
-  Users,
-  Calendar,
   Target,
   AlertCircle,
   Save
-} from 'lucide-react';
+} from 'lucide-react'
 
-export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
-  const { currentUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+export default function CreateCollectiveOrderModal ({ isOpen, onClose }) {
+  const { currentUser } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     productName: '',
     productCategory: '',
@@ -30,11 +27,11 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
     deadline: '',
     description: '',
     supplierInfo: ''
-  });
+  })
 
   const unitOptions = [
     'kg', 'gram', 'liter', 'ml', 'pcs', 'pack', 'box', 'karton', 'sak', 'ton'
-  ];
+  ]
 
   const categoryOptions = [
     'Beras & Biji-bijian',
@@ -49,36 +46,36 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
     'Alat Tulis',
     'Perlengkapan Toko',
     'Lainnya'
-  ];
+  ]
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
 
   const calculateSavings = () => {
-    const regular = parseFloat(formData.regularPrice) || 0;
-    const collective = parseFloat(formData.collectivePrice) || 0;
-    const minQty = parseFloat(formData.minQuantity) || 0;
+    const regular = parseFloat(formData.regularPrice) || 0
+    const collective = parseFloat(formData.collectivePrice) || 0
+    const minQty = parseFloat(formData.minQuantity) || 0
     
     if (regular > 0 && collective > 0 && minQty > 0) {
-      const savings = (regular - collective) * minQty;
-      const percentage = ((regular - collective) / regular * 100).toFixed(1);
-      return { savings, percentage };
+      const savings = (regular - collective) * minQty
+      const percentage = ((regular - collective) / regular * 100).toFixed(1)
+      return { savings, percentage }
     }
-    return { savings: 0, percentage: 0 };
-  };
+    return { savings: 0, percentage: 0 }
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
       // Calculate deadline timestamp
-      const deadlineDate = new Date(formData.deadline);
+      const deadlineDate = new Date(formData.deadline)
       
       await addDoc(collection(db, 'collectiveOrders'), {
         ...formData,
@@ -94,7 +91,7 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
         currentQuantity: 0,
         participantCount: 0,
         participants: []
-      });
+      })
 
       // Reset form
       setFormData({
@@ -109,16 +106,16 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
         deadline: '',
         description: '',
         supplierInfo: ''
-      });
+      })
 
-      onClose();
+      onClose()
     } catch (error) {
-      console.error('Error creating collective order:', error);
-      alert('Gagal membuat pesanan kolektif');
+      console.error('Error creating collective order:', error)
+      alert('Gagal membuat pesanan kolektif')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   const isFormValid = () => {
     return formData.productName && 
@@ -127,8 +124,8 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
            formData.regularPrice && 
            formData.collectivePrice && 
            formData.location && 
-           formData.deadline;
-  };
+           formData.deadline
+  }
 
   return (
     <AnimatePresence>
@@ -429,5 +426,5 @@ export default function CreateCollectiveOrderModal({ isOpen, onClose }) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }

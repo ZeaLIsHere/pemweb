@@ -1,32 +1,32 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { useCart } from '../contexts/CartContext';
-import { Plus, Minus } from 'lucide-react';
+import React from 'react'
+import { motion } from 'framer-motion'
+import { useCart } from '../contexts/CartContext'
+import { Plus, Minus } from 'lucide-react'
 
-export default function ProductGrid({ products }) {
-  const { cart, addItem, updateQuantity } = useCart();
+export default function ProductGrid ({ products }) {
+  const { cart, addItem, updateQuantity } = useCart()
 
   const getItemQuantity = (productId) => {
-    const item = cart.items.find(item => item.id === productId);
-    return item ? item.quantity : 0;
-  };
+    const item = cart.items.find(item => item.id === productId)
+    return item ? item.quantity : 0
+  }
 
   const handleAddToCart = (product) => {
-    const currentQuantity = getItemQuantity(product.id);
+    const currentQuantity = getItemQuantity(product.id)
     if (currentQuantity < product.stok) {
-      addItem(product);
+      addItem(product)
     }
-  };
+  }
 
   const handleUpdateQuantity = (productId, newQuantity) => {
-    updateQuantity(productId, newQuantity);
-  };
+    updateQuantity(productId, newQuantity)
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
       {products.map((product, index) => {
-        const quantity = getItemQuantity(product.id);
-        const canAddMore = quantity < product.stok;
+        const quantity = getItemQuantity(product.id)
+        const canAddMore = quantity < product.stok
 
         return (
           <motion.div
@@ -89,8 +89,8 @@ export default function ProductGrid({ products }) {
               </div>
             )}
           </motion.div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }

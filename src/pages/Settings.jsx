@@ -1,65 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import CreateStoreModal from '../components/CreateStoreModal';
+import React, { useState } from 'react'
+import { motion } from 'framer-motion'
+import CreateStoreModal from '../components/CreateStoreModal'
+import SubscriptionModal from '../components/SubscriptionModal'
+import SubscriptionStatus from '../components/SubscriptionStatus'
 import { 
   Settings as SettingsIcon, 
-  Globe, 
-  Check,
+  Globe,
   Smartphone,
   Plus,
   ChevronRight,
-  Store
-} from 'lucide-react';
+  Store,
+  Crown
+} from 'lucide-react'
 
-export default function Settings() {
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('language') || 'id';
-  });
-  const [showCreateStoreModal, setShowCreateStoreModal] = useState(false);
-
-  // Save language preference
-  useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
-
-  const languageOptions = [
-    {
-      id: 'id',
-      label: 'Bahasa Indonesia',
-      labelEn: 'Indonesian',
-      flag: '🇮🇩',
-      description: 'Gunakan bahasa Indonesia'
-    },
-    {
-      id: 'en',
-      label: 'English',
-      labelEn: 'English',
-      flag: '🇺🇸',
-      description: 'Use English language'
-    }
-  ];
-
-  const getText = (id, en) => {
-    return language === 'en' ? en : id;
-  };
+export default function Settings () {
+  // Language selection removed — settings page is now focused on subscription status
+  const [showCreateStoreModal, setShowCreateStoreModal] = useState(false)
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
+  const getText = (id) => id
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold text-secondary mb-2">
-          {getText('Pengaturan', 'Settings')}
+          {getText('Status Langganan', 'Subscription Status')}
         </h1>
         <p className="text-gray-600">
-          {getText('Sesuaikan aplikasi sesuai preferensi Anda', 'Customize the app to your preferences')}
+          {getText('Kelola status dan opsi berlangganan Anda', 'Manage your subscription status and options')}
         </p>
       </div>
+
+      {/* Subscription Management */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="card"
+      >
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-light rounded-lg flex items-center justify-center">
+            <Crown className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-secondary">
+              {getText('Berlangganan Premium', 'Premium Subscription')}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {getText('Akses penuh fitur AI untuk bisnis Anda', 'Full access to AI features for your business')}
+            </p>
+          </div>
+        </div>
+
+        <SubscriptionStatus onUpgrade={() => setShowSubscriptionModal(true)} />
+      </motion.div>
 
       {/* Store Management */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.2 }}
         className="card"
       >
         <div className="flex items-center space-x-3 mb-6">
@@ -115,63 +115,7 @@ export default function Settings() {
         </div>
       </motion.div>
 
-      {/* Language Settings */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="card"
-      >
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <Globe className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-secondary">
-              {getText('Bahasa', 'Language')}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {getText('Pilih bahasa yang ingin digunakan', 'Choose your preferred language')}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {languageOptions.map((option, index) => {
-            const isSelected = language === option.id;
-
-            return (
-              <motion.button
-                key={option.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-                onClick={() => setLanguage(option.id)}
-                className={`w-full flex items-center space-x-4 p-4 rounded-lg border-2 transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary bg-opacity-5'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="text-2xl">
-                  {option.flag}
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-secondary">
-                      {option.label}
-                    </p>
-                    {isSelected && <Check className="w-4 h-4 text-primary" />}
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {option.description}
-                  </p>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-      </motion.div>
+      {/* Language selection removed — the page now focuses on subscription status */}
 
       {/* App Info */}
       <motion.div
@@ -207,8 +151,8 @@ export default function Settings() {
         <div className="flex items-start space-x-3">
           <SettingsIcon className="w-5 h-5 text-blue-600 mt-1" />
           <div>
-            <h4 className="font-semibold text-blue-800 mb-2">
-              {getText('Catatan Pengaturan', 'Settings Note')}
+              <h4 className="font-semibold text-blue-800 mb-2">
+              {getText('Catatan Status Langganan', 'Subscription Note')}
             </h4>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>
@@ -217,12 +161,7 @@ export default function Settings() {
                   'Settings will be saved locally on your device'
                 )}
               </li>
-              <li>
-                • {getText(
-                  'Perubahan bahasa akan diterapkan pada seluruh aplikasi',
-                  'Language changes will be applied throughout the app'
-                )}
-              </li>
+              {/* Language change note removed */}
               <li>
                 • {getText(
                   'Setiap toko memiliki data terpisah dan dapat dikelola secara independen',
@@ -239,6 +178,12 @@ export default function Settings() {
         isOpen={showCreateStoreModal}
         onClose={() => setShowCreateStoreModal(false)}
       />
+
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </div>
-  );
+  )
 }

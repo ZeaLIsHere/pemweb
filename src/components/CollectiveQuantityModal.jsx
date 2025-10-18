@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, 
   Plus, 
@@ -9,142 +9,142 @@ import {
   DollarSign,
   AlertCircle,
   Check
-} from 'lucide-react';
+} from 'lucide-react'
 
-export default function CollectiveQuantityModal({ 
+export default function CollectiveQuantityModal ({ 
   isOpen, 
   onClose, 
   store, 
   selectedProducts, 
   onConfirm 
 }) {
-  const [quantities, setQuantities] = useState({});
-  const [updateTypes, setUpdateTypes] = useState({}); // 'manual' or 'batch'
-  const [loading, setLoading] = useState(false);
+  const [quantities, setQuantities] = useState({})
+  const [updateTypes, setUpdateTypes] = useState({}) // 'manual' or 'batch'
+  const [loading, setLoading] = useState(false)
 
   // Initialize quantities and update types when modal opens
   React.useEffect(() => {
     if (isOpen && store) {
-      const initialQuantities = {};
-      const initialUpdateTypes = {};
+      const initialQuantities = {}
+      const initialUpdateTypes = {}
       store.restockNeeds.forEach(product => {
         if (selectedProducts[`${store.id}-${product.productName}`]) {
-          initialQuantities[product.productName] = 1; // Default quantity
-          initialUpdateTypes[product.productName] = 'manual'; // Default to manual
+          initialQuantities[product.productName] = 1 // Default quantity
+          initialUpdateTypes[product.productName] = 'manual' // Default to manual
         }
-      });
-      setQuantities(initialQuantities);
-      setUpdateTypes(initialUpdateTypes);
+      })
+      setQuantities(initialQuantities)
+      setUpdateTypes(initialUpdateTypes)
     }
-  }, [isOpen, store, selectedProducts]);
+  }, [isOpen, store, selectedProducts])
 
   const selectedItems = store?.restockNeeds.filter(product => 
     selectedProducts[`${store.id}-${product.productName}`]
-  ) || [];
+  ) || []
 
   const updateQuantity = (productName, change) => {
     setQuantities(prev => {
-      const currentQty = prev[productName] || 1;
-      const newQty = Math.max(1, currentQty + change);
+      const currentQty = prev[productName] || 1
+      const newQty = Math.max(1, currentQty + change)
       return {
         ...prev,
         [productName]: newQty
-      };
-    });
-  };
+      }
+    })
+  }
 
   const setQuantity = (productName, value) => {
-    const qty = Math.max(1, parseInt(value) || 1);
+    const qty = Math.max(1, parseInt(value) || 1)
     setQuantities(prev => ({
       ...prev,
       [productName]: qty
-    }));
-  };
+    }))
+  }
 
   const setUpdateType = (productName, type) => {
     setUpdateTypes(prev => ({
       ...prev,
       [productName]: type
-    }));
+    }))
     
     // Reset quantity to 1 when changing type
     setQuantities(prev => ({
       ...prev,
       [productName]: 1
-    }));
-  };
+    }))
+  }
 
-  // Get batch size for a product (mock data for demo)
+  // Get batch size for a product
   const getBatchSize = (productName) => {
     const batchSizes = {
       'Mie Instan': 24,
       'Teh Botol': 12,
       'Beras Premium': 25,
       'Minyak Goreng': 6
-    };
-    return batchSizes[productName] || 12; // Default batch size
-  };
+    }
+    return batchSizes[productName] || 12 // Default batch size
+  }
 
   const calculateTotal = () => {
     return selectedItems.reduce((total, product) => {
-      const qty = quantities[product.productName] || 1;
-      const updateType = updateTypes[product.productName] || 'manual';
-      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
-      const bulkPrice = product.estimatedPrice * 0.8; // 20% discount for bulk
-      return total + (bulkPrice * actualQty);
-    }, 0);
-  };
+      const qty = quantities[product.productName] || 1
+      const updateType = updateTypes[product.productName] || 'manual'
+      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty
+      const bulkPrice = product.estimatedPrice * 0.8 // 20% discount for bulk
+      return total + (bulkPrice * actualQty)
+    }, 0)
+  }
 
   const calculateSavings = () => {
     return selectedItems.reduce((savings, product) => {
-      const qty = quantities[product.productName] || 1;
-      const updateType = updateTypes[product.productName] || 'manual';
-      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
-      const regularPrice = product.estimatedPrice;
-      const bulkPrice = regularPrice * 0.8;
-      return savings + ((regularPrice - bulkPrice) * actualQty);
-    }, 0);
-  };
+      const qty = quantities[product.productName] || 1
+      const updateType = updateTypes[product.productName] || 'manual'
+      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty
+      const regularPrice = product.estimatedPrice
+      const bulkPrice = regularPrice * 0.8
+      return savings + ((regularPrice - bulkPrice) * actualQty)
+    }, 0)
+  }
 
   const handleConfirm = async () => {
-    setLoading(true);
+    setLoading(true)
     
     const orderData = {
       storeId: store.id,
       storeName: store.name,
       items: selectedItems.map(product => {
-        const qty = quantities[product.productName] || 1;
-        const updateType = updateTypes[product.productName] || 'manual';
-        const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
+        const qty = quantities[product.productName] || 1
+        const updateType = updateTypes[product.productName] || 'manual'
+        const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty
         
         return {
           ...product,
           quantity: actualQty, // Actual quantity for inventory
           inputQuantity: qty, // User input quantity
-          updateType: updateType,
+          updateType,
           batchSize: updateType === 'batch' ? getBatchSize(product.productName) : 1,
           bulkPrice: product.estimatedPrice * 0.8,
           totalPrice: (product.estimatedPrice * 0.8) * actualQty
-        };
+        }
       }),
       totalAmount: calculateTotal(),
       totalSavings: calculateSavings(),
       orderDate: new Date(),
       status: 'confirmed'
-    };
+    }
 
     try {
-      await onConfirm(orderData);
-      onClose();
+      await onConfirm(orderData)
+      onClose()
     } catch (error) {
-      console.error('Error confirming collective order:', error);
-      alert('❌ Gagal memproses pesanan. Silakan coba lagi.');
+      console.error('Error confirming collective order:', error)
+      alert('❌ Gagal memproses pesanan. Silakan coba lagi.')
     }
     
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
-  if (!store) return null;
+  if (!store) return null
 
   return (
     <AnimatePresence>
@@ -318,10 +318,10 @@ export default function CollectiveQuantityModal({
                             <span className="text-gray-600">Subtotal:</span>
                             <span className="font-semibold text-gray-800">
                               Rp {(() => {
-                                const qty = quantities[product.productName] || 1;
-                                const updateType = updateTypes[product.productName] || 'manual';
-                                const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
-                                return ((product.estimatedPrice * 0.8) * actualQty).toLocaleString('id-ID');
+                                const qty = quantities[product.productName] || 1
+                                const updateType = updateTypes[product.productName] || 'manual'
+                                const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty
+                                return ((product.estimatedPrice * 0.8) * actualQty).toLocaleString('id-ID')
                               })()}
                             </span>
                           </div>
@@ -378,7 +378,7 @@ export default function CollectiveQuantityModal({
                         <li>• 💰 Harga sudah termasuk diskon bulk purchase 20%</li>
                         <li>• 🧾 Transaksi tercatat sebagai pembelian kolektif</li>
                         <li>• 🏪 Produk baru akan dibuat jika belum ada di inventory</li>
-                        <li>• 📊 Pilih "Per Batch" untuk pembelian dalam jumlah besar</li>
+                        <li>• 📊 Pilih &quot;Per Batch&quot; untuk pembelian dalam jumlah besar</li>
                         <li>• 🔢 Mode batch otomatis menghitung total unit berdasarkan ukuran batch</li>
                       </ul>
                     </div>
@@ -420,5 +420,5 @@ export default function CollectiveQuantityModal({
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }

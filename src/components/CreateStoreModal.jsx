@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, addDoc } from 'firebase/firestore'
 import { 
   X, 
   Store, 
@@ -12,11 +12,11 @@ import {
   Save,
   Building,
   User
-} from 'lucide-react';
+} from 'lucide-react'
 
-export default function CreateStoreModal({ isOpen, onClose }) {
-  const { currentUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+export default function CreateStoreModal ({ isOpen, onClose }) {
+  const { currentUser } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     storeName: '',
     ownerName: '',
@@ -24,31 +24,31 @@ export default function CreateStoreModal({ isOpen, onClose }) {
     phone: '',
     email: '',
     description: ''
-  });
+  })
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
       // Validate current user
       if (!currentUser || !currentUser.uid) {
-        throw new Error('User tidak terautentikasi. Silakan login ulang.');
+        throw new Error('User tidak terautentikasi. Silakan login ulang.')
       }
 
       // Validate required fields
       if (!formData.storeName?.trim() || !formData.ownerName?.trim() || !formData.address?.trim()) {
-        alert('Mohon lengkapi semua field yang wajib diisi (*)');
-        setLoading(false);
-        return;
+        alert('Mohon lengkapi semua field yang wajib diisi (*)')
+        setLoading(false)
+        return
       }
 
       // Sanitize and validate data
@@ -65,13 +65,13 @@ export default function CreateStoreModal({ isOpen, onClose }) {
         totalSales: 0,
         totalRevenue: 0,
         createdAt: new Date() // Use regular Date instead of serverTimestamp
-      };
+      }
 
-      console.log('Creating store with sanitized data:', sanitizedData);
+      console.log('Creating store with sanitized data:', sanitizedData)
       
-      const docRef = await addDoc(collection(db, 'stores'), sanitizedData);
+      const docRef = await addDoc(collection(db, 'stores'), sanitizedData)
       
-      console.log('Store created successfully with ID:', docRef.id);
+      console.log('Store created successfully with ID:', docRef.id)
 
       // Reset form
       setFormData({
@@ -81,34 +81,34 @@ export default function CreateStoreModal({ isOpen, onClose }) {
         phone: '',
         email: '',
         description: ''
-      });
+      })
 
-      alert('✅ Toko berhasil dibuat!');
-      onClose();
+      alert('✅ Toko berhasil dibuat!')
+      onClose()
     } catch (error) {
       console.error('Detailed error creating store:', {
-        error: error,
+        error,
         message: error.message,
         code: error.code
-      });
+      })
       
-      let errorMessage = 'Terjadi kesalahan saat membuat toko.';
+      let errorMessage = 'Terjadi kesalahan saat membuat toko.'
       
       if (error.code === 'permission-denied') {
-        errorMessage = 'Tidak memiliki izin untuk membuat toko.';
+        errorMessage = 'Tidak memiliki izin untuk membuat toko.'
       } else if (error.code === 'invalid-argument') {
-        errorMessage = 'Data yang dikirim tidak valid.';
+        errorMessage = 'Data yang dikirim tidak valid.'
       } else if (error.message) {
-        errorMessage = error.message;
+        errorMessage = error.message
       }
       
-      alert(`❌ Gagal membuat toko: ${errorMessage}`);
+      alert(`❌ Gagal membuat toko: ${errorMessage}`)
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
-  const isFormValid = formData.storeName && formData.ownerName && formData.address;
+  const isFormValid = formData.storeName && formData.ownerName && formData.address
 
   return (
     <AnimatePresence>
@@ -279,5 +279,5 @@ export default function CreateStoreModal({ isOpen, onClose }) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }

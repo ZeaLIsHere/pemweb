@@ -1,34 +1,34 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Edit3 } from 'lucide-react';
-import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Edit3 } from 'lucide-react'
+import { updateDoc, doc } from 'firebase/firestore'
+import { db } from '../config/firebase'
 
-export default function EditProductModal({ product, onClose }) {
+export default function EditProductModal ({ product, onClose }) {
   const [formData, setFormData] = useState({
     nama: product.nama,
     harga: product.harga.toString(),
     kategori: product.kategori || '',
     batchSize: product.batchSize ? product.batchSize.toString() : '',
     satuan: product.satuan || 'pcs'
-  });
-  const [loading, setLoading] = useState(false);
+  })
+  const [loading, setLoading] = useState(false)
 
   const satuanOptions = [
     'pcs', 'kg', 'gram', 'liter', 'ml', 'pack', 'box', 'karton', 'renteng', 'lusin'
-  ];
+  ]
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
       await updateDoc(doc(db, 'products', product.id), {
@@ -37,16 +37,16 @@ export default function EditProductModal({ product, onClose }) {
         kategori: formData.kategori || 'Umum',
         batchSize: formData.batchSize ? parseInt(formData.batchSize) : 1,
         satuan: formData.satuan
-      });
+      })
 
-      onClose();
+      onClose()
     } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Gagal memperbarui produk');
+      console.error('Error updating product:', error)
+      alert('Gagal memperbarui produk')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
     <AnimatePresence>
@@ -189,5 +189,5 @@ export default function EditProductModal({ product, onClose }) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  )
 }

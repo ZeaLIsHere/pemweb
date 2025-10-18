@@ -1,36 +1,36 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { TrendingUp, Star, Calendar } from 'lucide-react';
+import React, { useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { TrendingUp, Star, Calendar } from 'lucide-react'
 
-export default function SalesInsights({ sales, products }) {
+export default function SalesInsights ({ sales, products }) {
   const insights = useMemo(() => {
-    if (!sales.length) return null;
+    if (!sales.length) return null
 
     // Get sales from last 7 days
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
     
     const recentSales = sales.filter(sale => {
-      const saleDate = sale.timestamp?.toDate();
-      return saleDate && saleDate >= weekAgo;
-    });
+      const saleDate = sale.timestamp?.toDate()
+      return saleDate && saleDate >= weekAgo
+    })
 
     // Count sales by product
-    const productSales = {};
+    const productSales = {}
     recentSales.forEach(sale => {
-      productSales[sale.productId] = (productSales[sale.productId] || 0) + 1;
-    });
+      productSales[sale.productId] = (productSales[sale.productId] || 0) + 1
+    })
 
     // Find best selling product
     const bestSellingProductId = Object.keys(productSales).reduce((a, b) => 
       productSales[a] > productSales[b] ? a : b, Object.keys(productSales)[0]
-    );
+    )
 
-    const bestSellingProduct = products.find(p => p.id === bestSellingProductId);
-    const bestSellingCount = productSales[bestSellingProductId] || 0;
+    const bestSellingProduct = products.find(p => p.id === bestSellingProductId)
+    const bestSellingCount = productSales[bestSellingProductId] || 0
 
     // Calculate daily average
-    const dailyAverage = Math.round(recentSales.length / 7);
+    const dailyAverage = Math.round(recentSales.length / 7)
 
     return {
       bestSellingProduct,
@@ -38,8 +38,8 @@ export default function SalesInsights({ sales, products }) {
       dailyAverage,
       totalWeeklySales: recentSales.length,
       weeklyRevenue: recentSales.reduce((sum, sale) => sum + sale.price, 0)
-    };
-  }, [sales, products]);
+    }
+  }, [sales, products])
 
   if (!insights || !insights.bestSellingProduct) {
     return (
@@ -56,7 +56,7 @@ export default function SalesInsights({ sales, products }) {
         </div>
         <p className="text-gray-600">Mulai berjualan untuk melihat analisis bisnis Anda</p>
       </motion.div>
-    );
+    )
   }
 
   return (
@@ -119,5 +119,5 @@ export default function SalesInsights({ sales, products }) {
         </div>
       </div>
     </motion.div>
-  );
+  )
 }

@@ -1,134 +1,134 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { Package, Plus, Edit3, Trash2, AlertTriangle, Search } from 'lucide-react';
-import StockUpdateModal from '../components/StockUpdateModal';
-import EditProductModal from '../components/EditProductModal';
-import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore'
+import { Package, Plus, Edit3, Trash2, AlertTriangle, Search } from 'lucide-react'
+import StockUpdateModal from '../components/StockUpdateModal'
+import EditProductModal from '../components/EditProductModal'
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal'
 
-export default function Stock() {
-  const { currentUser } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showStockModal, setShowStockModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+export default function Stock () {
+  const { currentUser } = useAuth()
+  const [products, setProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [showStockModal, setShowStockModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [productToDelete, setProductToDelete] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     const productsQuery = query(
       collection(db, 'products'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
       try {
         const productsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        }))
         
         // Sort by stock level (low stock first)
-        productsData.sort((a, b) => (a.stok || 0) - (b.stok || 0));
+        productsData.sort((a, b) => (a.stok || 0) - (b.stok || 0))
         
-        setProducts(productsData);
-        setFilteredProducts(productsData);
-        setLoading(false);
+        setProducts(productsData)
+        setFilteredProducts(productsData)
+        setLoading(false)
       } catch (error) {
-        console.error('Error processing products data:', error);
-        setLoading(false);
+        console.error('Error processing products data:', error)
+        setLoading(false)
       }
     }, (error) => {
-      console.error('Error fetching products:', error);
-      setLoading(false);
+      console.error('Error fetching products:', error)
+      setLoading(false)
       
       // Show user-friendly error message
       if (error.code === 'permission-denied') {
-        console.log('Permission denied for products collection');
+        console.log('Permission denied for products collection')
       }
-    });
+    })
 
-    return unsubscribe;
-  }, [currentUser]);
+    return unsubscribe
+  }, [currentUser])
 
   useEffect(() => {
     if (searchTerm) {
       const filtered = products.filter(product =>
         product.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (product.kategori || 'Umum').toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredProducts(filtered);
+      )
+      setFilteredProducts(filtered)
     } else {
-      setFilteredProducts(products);
+      setFilteredProducts(products)
     }
-  }, [products, searchTerm]);
+  }, [products, searchTerm])
 
   const handleStockUpdate = (product) => {
-    setSelectedProduct(product);
-    setShowStockModal(true);
-  };
+    setSelectedProduct(product)
+    setShowStockModal(true)
+  }
 
   const handleEditProduct = (product) => {
-    setSelectedProduct(product);
-    setShowEditModal(true);
-  };
+    setSelectedProduct(product)
+    setShowEditModal(true)
+  }
 
   const handleDeleteProduct = (product) => {
-    setProductToDelete(product);
-    setShowDeleteModal(true);
-  };
+    setProductToDelete(product)
+    setShowDeleteModal(true)
+  }
 
   const confirmDeleteProduct = async () => {
-    if (!productToDelete) return;
+    if (!productToDelete) return
     
-    setDeleteLoading(true);
+    setDeleteLoading(true)
     try {
-      await deleteDoc(doc(db, 'products', productToDelete.id));
+      await deleteDoc(doc(db, 'products', productToDelete.id))
       
       // Close modal and reset state
-      setShowDeleteModal(false);
-      setProductToDelete(null);
+      setShowDeleteModal(false)
+      setProductToDelete(null)
       
       // Optional: Show success message
       // You can add a toast notification here instead of alert
       setTimeout(() => {
-        alert(`✅ Produk "${productToDelete.nama}" berhasil dihapus dari sistem.`);
-      }, 300);
+        alert(`✅ Produk "${productToDelete.nama}" berhasil dihapus dari sistem.`)
+      }, 300)
       
     } catch (error) {
-      console.error('Error deleting product:', error);
-      alert('❌ Gagal menghapus produk. Silakan coba lagi.');
+      console.error('Error deleting product:', error)
+      alert('❌ Gagal menghapus produk. Silakan coba lagi.')
     }
     
-    setDeleteLoading(false);
-  };
+    setDeleteLoading(false)
+  }
 
   const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setProductToDelete(null);
-  };
+    setShowDeleteModal(false)
+    setProductToDelete(null)
+  }
 
   const getStockStatus = (stock) => {
-    if (stock === 0) return { label: 'Habis', color: 'text-red-600 bg-red-50' };
-    if (stock <= 5) return { label: 'Menipis', color: 'text-yellow-600 bg-yellow-50' };
-    if (stock <= 20) return { label: 'Normal', color: 'text-blue-600 bg-blue-50' };
-    return { label: 'Banyak', color: 'text-green-600 bg-green-50' };
-  };
+    if (stock === 0) return { label: 'Habis', color: 'text-red-600 bg-red-50' }
+    if (stock <= 5) return { label: 'Menipis', color: 'text-yellow-600 bg-yellow-50' }
+    if (stock <= 20) return { label: 'Normal', color: 'text-blue-600 bg-blue-50' }
+    return { label: 'Banyak', color: 'text-green-600 bg-green-50' }
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -204,95 +204,63 @@ export default function Stock() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        // Compact 2-column grid for mobile: two cards side-by-side, then next row
+        <div className="grid grid-cols-2 gap-3">
           {filteredProducts.map((product, index) => {
-            const stockStatus = getStockStatus(product.stok);
-            
+            const stockStatus = getStockStatus(product.stok)
+
             return (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="card"
+                transition={{ delay: index * 0.03 }}
+                className="card p-3"
               >
-                {/* Mobile-First Layout */}
-                <div className="space-y-4">
-                  {/* Header with name and status */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-secondary text-lg mb-1">{product.nama}</h3>
-                      <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${stockStatus.color}`}>
-                        {stockStatus.label}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Product Info - Stacked for mobile */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600 text-sm">Stok Tersedia</span>
-                      <span className="font-bold text-lg text-secondary">{product.stok} {product.satuan}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600 text-sm">Harga Satuan</span>
-                      <span className="font-semibold text-primary">Rp {product.harga.toLocaleString('id-ID')}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600 text-sm">Kategori</span>
-                      <span className="font-medium text-gray-800">{product.kategori || 'Umum'}</span>
-                    </div>
-                    
-                    {product.batchSize > 1 && (
-                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-gray-600 text-sm">Ukuran Batch</span>
-                        <span className="font-medium text-gray-800">{product.batchSize} {product.satuan}</span>
-                      </div>
-                    )}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 pr-2">
+                    <h3 className="font-semibold text-secondary text-sm truncate">{product.nama}</h3>
+                    <p className="text-xs text-primary font-bold">Rp {product.harga.toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-gray-500">Stok: {product.stok} {product.satuan}</p>
                   </div>
 
-                  {/* Action Buttons - Full width for mobile */}
-                  <div className="flex gap-3 pt-2">
-                    {/* Edit Produk - Smaller button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleEditProduct(product)}
-                      className="flex items-center justify-center space-x-1 bg-blue-500 text-white py-2 px-3 rounded-lg font-medium text-xs shadow-sm"
-                    >
-                      <Edit3 size={14} />
-                      <span>Edit</span>
-                    </motion.button>
-                    
-                    {/* Tambah Stok - Larger dominant button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleStockUpdate(product)}
-                      className="flex-1 flex items-center justify-center space-x-2 bg-primary text-white py-3 px-4 rounded-xl font-semibold text-sm shadow-sm"
-                    >
-                      <Plus size={20} />
-                      <span>Tambah Stok</span>
-                    </motion.button>
-                  </div>
-                  
-                  {/* Delete Button - Separate row for safety */}
-                  <div className="pt-2 border-t border-gray-100">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleDeleteProduct(product)}
-                      className="w-full flex items-center justify-center space-x-2 bg-red-50 text-red-600 py-2 px-4 rounded-lg font-medium text-sm border border-red-200 hover:bg-red-100 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                      <span>Hapus Produk</span>
-                    </motion.button>
-                  </div>
+                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>{stockStatus.label}</span>
+                </div>
+
+                <div className="flex items-center gap-2 mt-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEditProduct(product)}
+                    className="flex items-center justify-center px-2 py-1 bg-blue-500 text-white rounded-md text-xs"
+                    aria-label={`Edit ${product.nama}`}
+                  >
+                    <Edit3 size={14} />
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleStockUpdate(product)}
+                    className="flex-1 flex items-center justify-center px-2 py-2 bg-primary text-white rounded-md text-sm font-semibold"
+                    aria-label={`Tambah stok ${product.nama}`}
+                  >
+                    <Plus size={16} />
+                    <span className="ml-1 text-xs">Stok</span>
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleDeleteProduct(product)}
+                    className="flex items-center justify-center px-2 py-1 bg-red-50 text-red-600 rounded-md text-xs border border-red-200"
+                    aria-label={`Hapus ${product.nama}`}
+                  >
+                    <Trash2 size={14} />
+                  </motion.button>
                 </div>
               </motion.div>
-            );
+            )
           })}
         </div>
       )}
@@ -303,8 +271,8 @@ export default function Stock() {
           <StockUpdateModal
             product={selectedProduct}
             onClose={() => {
-              setShowStockModal(false);
-              setSelectedProduct(null);
+              setShowStockModal(false)
+              setSelectedProduct(null)
             }}
           />
         )}
@@ -313,8 +281,8 @@ export default function Stock() {
           <EditProductModal
             product={selectedProduct}
             onClose={() => {
-              setShowEditModal(false);
-              setSelectedProduct(null);
+              setShowEditModal(false)
+              setSelectedProduct(null)
             }}
           />
         )}
@@ -329,5 +297,5 @@ export default function Stock() {
         loading={deleteLoading}
       />
     </div>
-  );
+  )
 }

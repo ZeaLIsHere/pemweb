@@ -1,18 +1,18 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useCart } from '../contexts/CartContext';
-import { X, Plus, Minus, CreditCard, ShoppingCart } from 'lucide-react';
+import React from 'react'
+import { motion } from 'framer-motion'
+import { useCart } from '../contexts/CartContext'
+import { X, Plus, Minus, CreditCard, ShoppingCart } from 'lucide-react'
 
-export default function CartModal({ onClose, onCheckout }) {
-  const { cart, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCart();
+export default function CartModal ({ onClose, onCheckout }) {
+  const { cart, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCart()
 
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeItem(productId);
+      removeItem(productId)
     } else {
-      updateQuantity(productId, newQuantity);
+      updateQuantity(productId, newQuantity)
     }
-  };
+  }
 
   return (
     <motion.div
@@ -141,5 +141,5 @@ export default function CartModal({ onClose, onCheckout }) {
         )}
       </motion.div>
     </motion.div>
-  );
+  )
 }

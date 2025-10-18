@@ -1,100 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '../config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { db } from '../config/firebase'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { 
   ArrowLeft, 
   DollarSign, 
   TrendingUp, 
   Package, 
   Clock,
-  Calendar,
   Receipt
-} from 'lucide-react';
+} from 'lucide-react'
 
-export default function TodayRevenue() {
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const [todaySales, setTodaySales] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function TodayRevenue () {
+  const { currentUser } = useAuth()
+  const navigate = useNavigate()
+  const [todaySales, setTodaySales] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) return
 
     // Get all transactions from both collections for the user first, then filter on client side
     // This avoids issues with Firestore timestamp queries
     const transactionsQuery = query(
       collection(db, 'transactions'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
     const salesQuery = query(
       collection(db, 'sales'),
       where('userId', '==', currentUser.uid)
-    );
+    )
 
-    let allTransactions = [];
-    let loadedCollections = 0;
-    const totalCollections = 2;
+    let allTransactions = []
+    let loadedCollections = 0
+    const totalCollections = 2
 
     const processData = () => {
-      if (loadedCollections < totalCollections) return;
+      if (loadedCollections < totalCollections) return
 
       try {
         // Filter for today's transactions on client side
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today)
+        tomorrow.setDate(tomorrow.getDate() + 1)
         
         const todaysSalesData = allTransactions.filter(sale => {
-          if (!sale.timestamp && !sale.createdAt) return false;
+          if (!sale.timestamp && !sale.createdAt) return false
           
           // Try both timestamp and createdAt fields
-          const saleTimestamp = sale.timestamp || sale.createdAt;
-          let saleDate;
+          const saleTimestamp = sale.timestamp || sale.createdAt
+          let saleDate
           
           if (saleTimestamp?.toDate) {
             // Firestore Timestamp
-            saleDate = saleTimestamp.toDate();
+            saleDate = saleTimestamp.toDate()
           } else if (saleTimestamp instanceof Date) {
             // JavaScript Date
-            saleDate = saleTimestamp;
+            saleDate = saleTimestamp
           } else if (typeof saleTimestamp === 'string') {
             // String date
-            saleDate = new Date(saleTimestamp);
+            saleDate = new Date(saleTimestamp)
           } else {
-            return false;
+            return false
           }
           
-          return saleDate >= today && saleDate < tomorrow;
-        });
+          return saleDate >= today && saleDate < tomorrow
+        })
         
         // Sort by timestamp descending (newest first)
         todaysSalesData.sort((a, b) => {
-          const timestampA = a.timestamp || a.createdAt;
-          const timestampB = b.timestamp || b.createdAt;
+          const timestampA = a.timestamp || a.createdAt
+          const timestampB = b.timestamp || b.createdAt
           
-          const dateA = timestampA?.toDate ? timestampA.toDate() : new Date(timestampA);
-          const dateB = timestampB?.toDate ? timestampB.toDate() : new Date(timestampB);
+          const dateA = timestampA?.toDate ? timestampA.toDate() : new Date(timestampA)
+          const dateB = timestampB?.toDate ? timestampB.toDate() : new Date(timestampB)
           
-          return dateB - dateA;
-        });
+          return dateB - dateA
+        })
         
-        console.log('All transactions data:', allTransactions);
-        console.log('Today sales data:', todaysSalesData);
-        console.log('Today date range:', { today, tomorrow });
+        console.log('All transactions data:', allTransactions)
+        console.log('Today sales data:', todaysSalesData)
+        console.log('Today date range:', { today, tomorrow })
         
-        setTodaySales(todaysSalesData);
-        setLoading(false);
+        setTodaySales(todaysSalesData)
+        setLoading(false)
       } catch (error) {
-        console.error('Error processing today sales:', error);
-        setTodaySales([]);
-        setLoading(false);
+        console.error('Error processing today sales:', error)
+        setTodaySales([])
+        setLoading(false)
       }
-    };
+    }
 
     const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
       try {
@@ -102,24 +101,24 @@ export default function TodayRevenue() {
           id: doc.id,
           ...doc.data(),
           source: 'transactions'
-        }));
+        }))
         
         // Replace transactions data
-        allTransactions = allTransactions.filter(item => item.source !== 'transactions');
-        allTransactions = [...allTransactions, ...transactionsData];
+        allTransactions = allTransactions.filter(item => item.source !== 'transactions')
+        allTransactions = [...allTransactions, ...transactionsData]
         
-        loadedCollections = Math.max(loadedCollections, 1);
-        processData();
+        loadedCollections = Math.max(loadedCollections, 1)
+        processData()
       } catch (error) {
-        console.error('Error processing transactions:', error);
-        loadedCollections = Math.max(loadedCollections, 1);
-        processData();
+        console.error('Error processing transactions:', error)
+        loadedCollections = Math.max(loadedCollections, 1)
+        processData()
       }
     }, (error) => {
-      console.error('Error in transactions onSnapshot:', error);
-      loadedCollections = Math.max(loadedCollections, 1);
-      processData();
-    });
+      console.error('Error in transactions onSnapshot:', error)
+      loadedCollections = Math.max(loadedCollections, 1)
+      processData()
+    })
 
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
       try {
@@ -127,71 +126,71 @@ export default function TodayRevenue() {
           id: doc.id,
           ...doc.data(),
           source: 'sales'
-        }));
+        }))
         
         // Replace sales data
-        allTransactions = allTransactions.filter(item => item.source !== 'sales');
-        allTransactions = [...allTransactions, ...salesData];
+        allTransactions = allTransactions.filter(item => item.source !== 'sales')
+        allTransactions = [...allTransactions, ...salesData]
         
-        loadedCollections = Math.max(loadedCollections, 2);
-        processData();
+        loadedCollections = Math.max(loadedCollections, 2)
+        processData()
       } catch (error) {
-        console.error('Error processing sales:', error);
-        loadedCollections = Math.max(loadedCollections, 2);
-        processData();
+        console.error('Error processing sales:', error)
+        loadedCollections = Math.max(loadedCollections, 2)
+        processData()
       }
     }, (error) => {
-      console.error('Error in sales onSnapshot:', error);
-      loadedCollections = Math.max(loadedCollections, 2);
-      processData();
-    });
+      console.error('Error in sales onSnapshot:', error)
+      loadedCollections = Math.max(loadedCollections, 2)
+      processData()
+    })
 
     return () => {
-      unsubscribeTransactions();
-      unsubscribeSales();
-    };
-  }, [currentUser]);
+      unsubscribeTransactions()
+      unsubscribeSales()
+    }
+  }, [currentUser])
 
   const getTodayTotal = () => {
-    return todaySales.reduce((total, sale) => total + (sale.totalAmount || sale.price || 0), 0);
-  };
+    return todaySales.reduce((total, sale) => total + (sale.totalAmount || sale.price || 0), 0)
+  }
 
   const getTotalTransactions = () => {
-    return todaySales.length;
-  };
+    return todaySales.length
+  }
 
   const getTotalItems = () => {
     return todaySales.reduce((total, sale) => {
-      return total + (sale.items?.reduce((itemTotal, item) => itemTotal + item.quantity, 0) || 0);
-    }, 0);
-  };
+      return total + (sale.items?.reduce((itemTotal, item) => itemTotal + item.quantity, 0) || 0)
+    }, 0)
+  }
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return 'Tidak diketahui';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (!timestamp) return 'Tidak diketahui'
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
     return date.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit'
-    });
-  };
+    })
+  }
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'Tidak diketahui';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (!timestamp) return 'Tidak diketahui'
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
     return date.toLocaleDateString('id-ID', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    });
-  };
+    })
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -346,5 +345,5 @@ export default function TodayRevenue() {
         )}
       </motion.div>
     </div>
-  );
+  )
 }

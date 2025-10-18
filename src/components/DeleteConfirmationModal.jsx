@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { AlertTriangle, X, Trash2 } from 'lucide-react'
 
-export default function DeleteConfirmationModal({ 
+export default function DeleteConfirmationModal ({ 
   isOpen, 
   onClose, 
   onConfirm, 
   product,
   loading = false 
 }) {
-  const [confirmText, setConfirmText] = useState('');
-  const isConfirmValid = confirmText.toUpperCase() === 'HAPUS';
+  const [confirmText, setConfirmText] = useState('')
+  const isConfirmValid = confirmText.toUpperCase() === 'HAPUS'
 
   // Reset confirmation text when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setConfirmText('');
+      setConfirmText('')
     }
-  }, [isOpen]);
+  }, [isOpen])
 
-  if (!product) return null;
+  if (!product) return null
 
   return (
     <AnimatePresence>
@@ -67,10 +67,10 @@ export default function DeleteConfirmationModal({
                   Apakah Anda yakin ingin menghapus produk
                 </p>
                 <p className="text-xl font-bold text-red-600 mb-4">
-                  "{product.nama}"?
+                  &quot;{product.nama}&quot;?
                 </p>
                 <p className="text-sm text-gray-600">
-                  Ketik "<span className="font-semibold text-red-600">HAPUS</span>" untuk mengkonfirmasi
+                  Ketik &quot;<span className="font-semibold text-red-600">HAPUS</span>&quot; untuk mengkonfirmasi
                 </p>
               </div>
 
@@ -125,5 +125,5 @@ export default function DeleteConfirmationModal({
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  )
 }

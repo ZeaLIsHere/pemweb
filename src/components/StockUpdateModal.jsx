@@ -1,52 +1,78 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Package, Plus } from 'lucide-react';
-import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Package, Plus } from 'lucide-react'
+import { updateDoc, doc } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import { useNotification } from '../contexts/NotificationContext'
+import { useToast } from '../contexts/ToastContext'
 
-export default function StockUpdateModal({ product, onClose }) {
-  const [updateType, setUpdateType] = useState('manual'); // 'manual' or 'batch'
-  const [quantity, setQuantity] = useState('');
-  const [batchCount, setBatchCount] = useState('');
-  const [loading, setLoading] = useState(false);
+export default function StockUpdateModal ({ product, onClose }) {
+  const [updateType, setUpdateType] = useState('manual') // 'manual' or 'batch'
+  const [quantity, setQuantity] = useState('')
+  const [batchCount, setBatchCount] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { notifyStockUpdated } = useNotification()
+  const { showSuccess, showError } = useToast()
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
 
     try {
-      let newStock = product.stok;
-      
+      // Validate input
+      let addition = 0
       if (updateType === 'manual') {
-        newStock += parseInt(quantity);
+        const qty = parseInt(quantity)
+        if (isNaN(qty) || qty <= 0) {
+          showError('Jumlah harus berupa angka positif')
+          setLoading(false)
+          return
+        }
+        addition = qty
       } else {
-        const batchSize = product.batchSize || 1;
-        newStock += parseInt(batchCount) * batchSize;
+        const batchQty = parseInt(batchCount)
+        if (isNaN(batchQty) || batchQty <= 0) {
+          showError('Jumlah batch harus berupa angka positif')
+          setLoading(false)
+          return
+        }
+        const batchSize = product.batchSize || 1
+        addition = batchQty * batchSize
       }
+
+      const newStock = product.stok + addition
 
       await updateDoc(doc(db, 'products', product.id), {
         stok: Math.max(0, newStock)
-      });
+      })
 
-      onClose();
+      // Send stock updated notification
+      notifyStockUpdated(product.nama, Math.max(0, newStock), () => {
+        // Navigate to stock page or product details
+      })
+
+      // Show success message
+      showSuccess(`Stok ${product.nama} berhasil diperbarui menjadi ${Math.max(0, newStock)} ${product.satuan}`)
+
+      onClose()
     } catch (error) {
-      console.error('Error updating stock:', error);
-      alert('Gagal memperbarui stok');
+      console.error('Error updating stock:', error)
+      showError('Gagal memperbarui stok. Silakan coba lagi.')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   const getPreviewStock = () => {
-    let addition = 0;
+    let addition = 0
     if (updateType === 'manual' && quantity) {
-      addition = parseInt(quantity);
+      addition = parseInt(quantity)
     } else if (updateType === 'batch' && batchCount) {
-      const batchSize = product.batchSize || 1;
-      addition = parseInt(batchCount) * batchSize;
+      const batchSize = product.batchSize || 1
+      addition = parseInt(batchCount) * batchSize
     }
-    return product.stok + addition;
-  };
+    return product.stok + addition
+  }
 
   return (
     <AnimatePresence>
@@ -247,5 +273,5 @@ export default function StockUpdateModal({ product, onClose }) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
+  )
 }
