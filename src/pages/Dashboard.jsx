@@ -30,11 +30,20 @@ export default function Dashboard() {
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
-      const productsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setProducts(productsData);
+      try {
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setProducts(productsData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error processing products data:', error);
+        setLoading(false);
+      }
+    }, (error) => {
+      console.error('Error fetching products:', error);
+      setProducts([]);
       setLoading(false);
     });
 
@@ -45,11 +54,19 @@ export default function Dashboard() {
     );
 
     const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
-      const salesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setSales(salesData);
+      try {
+        const salesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setSales(salesData);
+      } catch (error) {
+        console.error('Error processing sales data:', error);
+        setSales([]);
+      }
+    }, (error) => {
+      console.error('Error fetching sales:', error);
+      setSales([]);
     });
 
     return () => {
@@ -85,7 +102,7 @@ export default function Dashboard() {
   };
 
   const getTotalRevenue = () => {
-    return sales.reduce((total, sale) => total + sale.price, 0);
+    return sales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
   };
 
   const getTodayRevenue = () => {
@@ -95,9 +112,23 @@ export default function Dashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     return sales.filter(sale => {
-      const saleDate = sale.timestamp?.toDate() || new Date(sale.timestamp);
+      if (!sale.timestamp) return false;
+      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp);
       return saleDate >= today && saleDate < tomorrow;
-    }).reduce((total, sale) => total + sale.price, 0);
+    }).reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
+  };
+
+  const getTodayTransactions = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return sales.filter(sale => {
+      if (!sale.timestamp) return false;
+      const saleDate = sale.timestamp?.toDate ? sale.timestamp.toDate() : new Date(sale.timestamp);
+      return saleDate >= today && saleDate < tomorrow;
+    }).length;
   };
 
   const getTotalProducts = () => {
@@ -176,11 +207,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm text-gray-600">Penjualan Hari Ini</p>
               <p className="text-lg font-bold text-secondary">
-                {sales.filter(sale => {
-                  const today = new Date();
-                  const saleDate = sale.timestamp?.toDate();
-                  return saleDate && saleDate.toDateString() === today.toDateString();
-                }).length}
+                {getTodayTransactions()} transaksi
               </p>
             </div>
           </div>

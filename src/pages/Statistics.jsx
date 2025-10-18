@@ -18,8 +18,83 @@ import {
   Lightbulb,
   Target,
   Clock,
-  TrendingDown
+  TrendingDown,
+  PieChart,
+  Award,
+  Star,
+  AlertTriangle
 } from 'lucide-react';
+
+// Simple Pie Chart Component
+const SimplePieChart = ({ data, size = 120 }) => {
+  if (!data || data.length === 0) return null;
+
+  const radius = size / 2 - 10;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  
+  const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    return {
+      x: centerX + (radius * Math.cos(angleInRadians)),
+      y: centerY + (radius * Math.sin(angleInRadians))
+    };
+  };
+  
+  const createArcPath = (startAngle, endAngle, radius, centerX, centerY) => {
+    const start = polarToCartesian(centerX, centerY, radius, endAngle);
+    const end = polarToCartesian(centerX, centerY, radius, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    
+    return [
+      "M", centerX, centerY,
+      "L", start.x, start.y,
+      "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+      "Z"
+    ].join(" ");
+  };
+
+  let cumulativePercentage = 0;
+
+  return (
+    <div className="flex items-center space-x-4">
+      <svg width={size} height={size} className="transform -rotate-90">
+        {data.map((segment, index) => {
+          const startAngle = cumulativePercentage * 3.6;
+          const endAngle = (cumulativePercentage + segment.percentage) * 3.6;
+          cumulativePercentage += segment.percentage;
+          
+          return (
+            <path
+              key={index}
+              d={createArcPath(startAngle, endAngle, radius, centerX, centerY)}
+              fill={segment.color}
+              stroke="white"
+              strokeWidth="2"
+            />
+          );
+        })}
+      </svg>
+      
+      <div className="space-y-2">
+        {data.map((segment, index) => (
+          <div key={index} className="flex items-center space-x-2">
+            <div 
+              className="w-3 h-3 rounded-full" 
+              style={{ backgroundColor: segment.color }}
+            ></div>
+            <div className="text-sm">
+              <div className="font-medium text-gray-800">{segment.name}</div>
+              <div className="text-gray-600">
+                {segment.percentage.toFixed(1)}% • Rp {segment.value.toLocaleString('id-ID')}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function Statistics() {
   const { currentUser } = useAuth();
@@ -33,6 +108,60 @@ export default function Statistics() {
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
+  const [dateRangeError, setDateRangeError] = useState('');
+
+  // Validate custom date range
+  const validateDateRange = (start, end) => {
+    if (!start || !end) {
+      setDateRangeError('');
+      return true;
+    }
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate > endDate) {
+      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari tanggal "Sampai"');
+      return false;
+    }
+
+    // Check if date range is too far in the future
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    if (startDate > today) {
+      setDateRangeError('Tanggal "Dari" tidak boleh lebih besar dari hari ini');
+      return false;
+    }
+    
+    if (endDate > today) {
+      setDateRangeError('Tanggal "Sampai" tidak boleh lebih besar dari hari ini');
+      return false;
+    }
+
+    // Check if date range is more than 1 year
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    if (startDate < oneYearAgo) {
+      setDateRangeError('Rentang tanggal maksimal 1 tahun dari hari ini');
+      return false;
+    }
+
+    setDateRangeError('');
+    return true;
+  };
+
+  // Handle custom date range changes
+  const handleDateRangeChange = (field, value) => {
+    const newRange = { ...customDateRange, [field]: value };
+    setCustomDateRange(newRange);
+    
+    // Validate when both dates are filled
+    if (newRange.start && newRange.end) {
+      validateDateRange(newRange.start, newRange.end);
+    } else {
+      setDateRangeError('');
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -113,6 +242,8 @@ export default function Statistics() {
         
         case 'custom':
           if (!customDateRange.start || !customDateRange.end) return true;
+          // Don't filter if there's a date range error
+          if (dateRangeError) return true;
           const startDate = new Date(customDateRange.start);
           const endDate = new Date(customDateRange.end);
           endDate.setHours(23, 59, 59, 999); // Include end of day
@@ -128,7 +259,7 @@ export default function Statistics() {
 
   // Calculate statistics
   const getTotalRevenue = () => {
-    return filteredSales.reduce((total, sale) => total + sale.price, 0);
+    return filteredSales.reduce((total, sale) => total + (sale.price || sale.totalAmount || 0), 0);
   };
 
   const getTotalTransactions = () => {
@@ -142,24 +273,103 @@ export default function Statistics() {
   };
 
   const getTopProducts = () => {
-    const productSales = {};
-    
-    filteredSales.forEach(sale => {
-      if (productSales[sale.productName]) {
-        productSales[sale.productName].count += 1;
-        productSales[sale.productName].revenue += sale.price;
-      } else {
-        productSales[sale.productName] = {
-          name: sale.productName,
-          count: 1,
-          revenue: sale.price
-        };
+    try {
+      const productSales = {};
+      
+      if (!filteredSales || filteredSales.length === 0) {
+        return [];
+      }
+      
+      filteredSales.forEach(sale => {
+      // Handle both old format (single product) and new format (items array)
+      if (sale.items && Array.isArray(sale.items)) {
+        // New format with items array
+        sale.items.forEach(item => {
+          const productName = item.nama || item.productName || 'Unknown Product';
+          const quantity = item.quantity || 1;
+          const revenue = (item.harga || item.price || 0) * quantity;
+          
+          if (productSales[productName]) {
+            productSales[productName].count += quantity;
+            productSales[productName].revenue += revenue;
+            productSales[productName].transactions += 1;
+          } else {
+            productSales[productName] = {
+              name: productName,
+              count: quantity,
+              revenue: revenue,
+              transactions: 1
+            };
+          }
+        });
+      } else if (sale.productName) {
+        // Old format (single product per sale)
+        const productName = sale.productName;
+        const revenue = sale.price || sale.totalAmount || 0;
+        
+        if (productSales[productName]) {
+          productSales[productName].count += 1;
+          productSales[productName].revenue += revenue;
+          productSales[productName].transactions += 1;
+        } else {
+          productSales[productName] = {
+            name: productName,
+            count: 1,
+            revenue: revenue,
+            transactions: 1
+          };
+        }
       }
     });
 
-    return Object.values(productSales)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+      return Object.values(productSales)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+    } catch (error) {
+      console.error('Error in getTopProducts:', error);
+      return [];
+    }
+  };
+
+  // Get revenue distribution for pie chart
+  const getRevenueDistribution = () => {
+    try {
+      const topProducts = getTopProducts();
+      const totalRevenue = getTotalRevenue();
+      
+      if (totalRevenue === 0 || topProducts.length === 0) {
+        return [];
+      }
+
+      const topProduct = topProducts[0];
+      if (!topProduct) {
+        return [];
+      }
+
+      const topProductRevenue = topProduct.revenue || 0;
+      const otherProductsRevenue = totalRevenue - topProductRevenue;
+      
+      const topProductPercentage = (topProductRevenue / totalRevenue) * 100;
+      const otherProductsPercentage = (otherProductsRevenue / totalRevenue) * 100;
+
+      return [
+        {
+          name: topProduct.name || 'Unknown Product',
+          value: topProductRevenue,
+          percentage: topProductPercentage,
+          color: '#FF7A00' // Primary color
+        },
+        {
+          name: 'Produk Lainnya',
+          value: otherProductsRevenue,
+          percentage: otherProductsPercentage,
+          color: '#E5E7EB' // Gray color
+        }
+      ];
+    } catch (error) {
+      console.error('Error in getRevenueDistribution:', error);
+      return [];
+    }
   };
 
   // Group sales by date for chart
@@ -167,11 +377,15 @@ export default function Statistics() {
     const salesByDate = {};
     
     filteredSales.forEach(sale => {
+      if (!sale.timestamp) return;
+      
       const date = sale.timestamp.toDate().toLocaleDateString('id-ID');
+      const revenue = sale.price || sale.totalAmount || 0;
+      
       if (salesByDate[date]) {
-        salesByDate[date] += sale.price;
+        salesByDate[date] += revenue;
       } else {
-        salesByDate[date] = sale.price;
+        salesByDate[date] = revenue;
       }
     });
 
@@ -245,16 +459,38 @@ export default function Statistics() {
     let totalRevenue = 0;
 
     busiestDaySales.forEach(sale => {
-      totalRevenue += sale.price;
-      if (productSales[sale.productName]) {
-        productSales[sale.productName].count += 1;
-        productSales[sale.productName].revenue += sale.price;
-      } else {
-        productSales[sale.productName] = {
-          name: sale.productName,
-          count: 1,
-          revenue: sale.price
-        };
+      const revenue = sale.price || sale.totalAmount || 0;
+      totalRevenue += revenue;
+      
+      // Handle both old format (single product) and new format (items array)
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          const productName = item.nama || item.productName || 'Unknown Product';
+          const quantity = item.quantity || 1;
+          const itemRevenue = (item.harga || item.price || 0) * quantity;
+          
+          if (productSales[productName]) {
+            productSales[productName].count += quantity;
+            productSales[productName].revenue += itemRevenue;
+          } else {
+            productSales[productName] = {
+              name: productName,
+              count: quantity,
+              revenue: itemRevenue
+            };
+          }
+        });
+      } else if (sale.productName) {
+        if (productSales[sale.productName]) {
+          productSales[sale.productName].count += 1;
+          productSales[sale.productName].revenue += revenue;
+        } else {
+          productSales[sale.productName] = {
+            name: sale.productName,
+            count: 1,
+            revenue: revenue
+          };
+        }
       }
     });
 
@@ -335,6 +571,9 @@ export default function Statistics() {
     );
   }
 
+  // Error boundary for the entire component
+  try {
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -391,22 +630,25 @@ export default function Statistics() {
                   {period.label}
                 </button>
               ))}
-            </div>
+          </div>
 
-            {filterPeriod === 'custom' && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="grid grid-cols-2 gap-3"
-              >
+          {filterPeriod === 'custom' && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="space-y-3"
+            >
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Dari</label>
                   <input
                     type="date"
                     value={customDateRange.start}
-                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    onChange={(e) => handleDateRangeChange('start', e.target.value)}
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      dateRangeError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
                 </div>
                 <div>
@@ -414,12 +656,45 @@ export default function Statistics() {
                   <input
                     type="date"
                     value={customDateRange.end}
-                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    onChange={(e) => handleDateRangeChange('end', e.target.value)}
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      dateRangeError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
                 </div>
-              </motion.div>
-            )}
+              </div>
+              
+              {/* Error Message */}
+              {dateRangeError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg"
+                >
+                  <X className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <p className="text-sm text-red-700 font-medium">{dateRangeError}</p>
+                </motion.div>
+              )}
+              
+              {/* Success Message */}
+              {!dateRangeError && customDateRange.start && customDateRange.end && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg"
+                >
+                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <p className="text-sm text-green-700 font-medium">
+                    Rentang tanggal valid: {new Date(customDateRange.start).toLocaleDateString('id-ID')} - {new Date(customDateRange.end).toLocaleDateString('id-ID')}
+                  </p>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
           </div>
         </motion.div>
       </div>
@@ -562,40 +837,103 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Top Products */}
+      {/* Top Products Enhanced */}
       <div className="card">
         <div className="flex items-center space-x-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-primary" />
+          <Award className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-secondary">Produk Terlaris</h3>
         </div>
 
-        <div className="space-y-3">
-          {getTopProducts().map((product, index) => (
-            <div key={product.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  {index + 1}
+        {getTopProducts().length > 0 ? (
+          <div className="space-y-6">
+            {/* Top Product Highlight */}
+            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                  <Star className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-secondary">{product.name}</p>
-                  <p className="text-sm text-gray-600">{product.count} terjual</p>
+                  <h4 className="font-bold text-secondary text-lg">{getTopProducts()[0]?.name || 'N/A'}</h4>
+                  <p className="text-sm text-gray-600">Produk Terlaris #{getPeriodLabel()}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-bold text-success">
-                  Rp {product.revenue.toLocaleString('id-ID')}
-                </p>
+              
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">{getTopProducts()[0]?.count || 0}</p>
+                  <p className="text-xs text-gray-600">Unit Terjual</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    Rp {(getTopProducts()[0]?.revenue || 0).toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-xs text-gray-600">Total Revenue</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{getTopProducts()[0]?.transactions || 0}</p>
+                  <p className="text-xs text-gray-600">Transaksi</p>
+                </div>
               </div>
             </div>
-          ))}
-          
-          {getTopProducts().length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p>Belum ada data penjualan untuk periode ini</p>
-            </div>
-          )}
-        </div>
+
+            {/* Revenue Distribution Pie Chart */}
+            {getRevenueDistribution().length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <PieChart className="w-4 h-4 text-primary" />
+                  <h4 className="font-semibold text-secondary">Distribusi Revenue</h4>
+                </div>
+                <SimplePieChart data={getRevenueDistribution()} size={140} />
+                <div className="mt-3 text-center">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-semibold text-primary">{getTopProducts()[0]?.name || 'Produk Terlaris'}</span> berkontribusi{' '}
+                    <span className="font-bold text-primary">
+                      {getRevenueDistribution()[0]?.percentage?.toFixed(1) || '0'}%
+                    </span>{' '}
+                    dari total revenue
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Other Top Products */}
+            {getTopProducts().length > 1 && (
+              <div>
+                <h4 className="font-semibold text-secondary mb-3">Produk Terlaris Lainnya</h4>
+                <div className="space-y-2">
+                  {getTopProducts().slice(1).map((product, index) => (
+                    <div key={product.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-7 h-7 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {index + 2}
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary">{product.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {product.count} unit • {product.transactions} transaksi
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-success">
+                          Rp {product.revenue.toLocaleString('id-ID')}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {((product.revenue / getTotalRevenue()) * 100).toFixed(1)}% dari total
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p>Belum ada data penjualan untuk periode ini</p>
+          </div>
+        )}
       </div>
 
       {/* Insight Detail Modal */}
@@ -744,4 +1082,22 @@ export default function Statistics() {
       )}
     </div>
   );
+  } catch (error) {
+    console.error('Error in Statistics component:', error);
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <h2 className="text-xl font-bold text-red-600 mb-2">Terjadi Kesalahan</h2>
+          <p className="text-gray-600 mb-4">Tidak dapat memuat data statistik</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+          >
+            Muat Ulang
+          </button>
+        </div>
+      </div>
+    );
+  }
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
-import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export default function CheckoutModal({ onClose, userId }) {
@@ -12,6 +12,48 @@ export default function CheckoutModal({ onClose, userId }) {
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('tunai');
   const [transactionData, setTransactionData] = useState(null);
+
+  // Collective Shopping Demo Function
+  const checkCollectiveShoppingOpportunity = async (soldItems) => {
+    const stockThreshold = 5; // Hardcoded threshold as per spec
+    
+    try {
+      // Check each sold item for low stock after sale
+      for (const item of soldItems) {
+        const productRef = doc(db, 'products', item.id);
+        const productSnap = await getDoc(productRef);
+        
+        if (productSnap.exists()) {
+          const currentStock = productSnap.data().stok || 0;
+          
+          // Check if stock is at or below threshold and still above 0
+          if (currentStock <= stockThreshold && currentStock > 0) {
+            // Generate pseudo-random data for demo
+            const interestedMerchants = Math.floor(Math.random() * 36) + 15; // 15-50 merchants
+            const productName = item.nama;
+            
+            // Format offer message
+            const offerMessage = `🛒 PENAWARAN BELANJA KOLEKTIF!\n\n` +
+              `Produk: ${productName}\n` +
+              `Stok tersisa: ${currentStock} unit\n` +
+              `${interestedMerchants} pedagang lain tertarik untuk pembelian kolektif!\n\n` +
+              `Bergabung sekarang untuk mendapatkan harga grosir yang lebih murah!`;
+            
+            // Show alert with delay for better UX (as per spec)
+            setTimeout(() => {
+              alert(offerMessage);
+            }, 500);
+            
+            // Only show one offer per checkout to avoid spam
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking collective shopping opportunity:', error);
+      // Fail silently as this is a demo feature
+    }
+  };
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -41,7 +83,26 @@ export default function CheckoutModal({ onClose, userId }) {
 
       await Promise.all(updatePromises);
 
-      // Simpan transaksi
+      // Simpan transaksi ke collection 'sales' untuk konsistensi dengan Dashboard
+      await addDoc(collection(db, 'sales'), {
+        userId: userId,
+        items: cart.items.map(item => ({
+          productId: item.id,
+          nama: item.nama,
+          harga: item.harga,
+          quantity: item.quantity,
+          subtotal: item.harga * item.quantity
+        })),
+        price: getTotalPrice(), // Field name konsisten dengan Dashboard
+        totalAmount: getTotalPrice(), // Field name konsisten dengan TodayRevenue
+        totalItems: getTotalItems(),
+        paymentMethod: paymentMethod,
+        timestamp: serverTimestamp(), // Field name konsisten dengan filter
+        createdAt: serverTimestamp(),
+        status: 'completed'
+      });
+
+      // Juga simpan ke collection 'transactions' untuk TodayRevenue
       await addDoc(collection(db, 'transactions'), {
         userId: userId,
         items: cart.items.map(item => ({
@@ -51,16 +112,20 @@ export default function CheckoutModal({ onClose, userId }) {
           quantity: item.quantity,
           subtotal: item.harga * item.quantity
         })),
-        total: getTotalPrice(),
+        totalAmount: getTotalPrice(),
         totalItems: getTotalItems(),
         paymentMethod: paymentMethod,
-        createdAt: new Date(),
+        timestamp: serverTimestamp(),
+        createdAt: serverTimestamp(),
         status: 'completed'
       });
 
       // Clear cart dan show success
       clearCart();
       setSuccess(true);
+      
+      // Trigger collective shopping check after stock update
+      checkCollectiveShoppingOpportunity(cart.items);
       
       // Auto close
       setTimeout(() => {

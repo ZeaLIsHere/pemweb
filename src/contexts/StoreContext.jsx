@@ -28,36 +28,131 @@ export function StoreProvider({ children }) {
       return;
     }
 
+    // Set timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.log('Firestore loading timeout, switching to fallback mode');
+      
+      // Try to load from localStorage
+      const tempStoreData = localStorage.getItem('tempStore');
+      if (tempStoreData) {
+        try {
+          const tempStore = JSON.parse(tempStoreData);
+          if (tempStore.userId === currentUser.uid) {
+            setStores([tempStore]);
+            setCurrentStore(tempStore);
+            console.log('Using temporary store from localStorage due to timeout:', tempStore);
+          }
+        } catch (error) {
+          console.error('Error parsing temporary store data:', error);
+        }
+      }
+      
+      setLoading(false);
+    }, 5000); // 5 second timeout
+
     const storesQuery = query(
       collection(db, 'stores'),
       where('userId', '==', currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(storesQuery, (snapshot) => {
-      const storesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      clearTimeout(loadingTimeout); // Clear timeout if successful
+      
+      try {
+        const storesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-      setStores(storesData);
+        // Check for temporary store in localStorage
+        const tempStoreData = localStorage.getItem('tempStore');
+        if (tempStoreData) {
+          try {
+            const tempStore = JSON.parse(tempStoreData);
+            if (tempStore.userId === currentUser.uid) {
+              // Check if this temp store is already in Firestore
+              const existsInFirestore = storesData.some(store => 
+                store.storeName === tempStore.storeName && 
+                store.ownerName === tempStore.ownerName
+              );
+              
+              if (!existsInFirestore) {
+                storesData.push(tempStore);
+                console.log('Added temporary store from localStorage:', tempStore);
+              } else {
+                // Remove temp store if it exists in Firestore
+                localStorage.removeItem('tempStore');
+                console.log('Removed temporary store as it exists in Firestore');
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing temporary store data:', error);
+            localStorage.removeItem('tempStore'); // Remove corrupted data
+          }
+        }
 
-      // Set current store (first store or previously selected)
-      const savedStoreId = localStorage.getItem('currentStoreId');
-      let selectedStore = null;
+        setStores(storesData);
 
-      if (savedStoreId) {
-        selectedStore = storesData.find(store => store.id === savedStoreId);
+        // Set current store (first store or previously selected)
+        const savedStoreId = localStorage.getItem('currentStoreId');
+        let selectedStore = null;
+
+        if (savedStoreId) {
+          selectedStore = storesData.find(store => store.id === savedStoreId);
+        }
+
+        if (!selectedStore && storesData.length > 0) {
+          selectedStore = storesData[0];
+          // Save the selected store ID
+          localStorage.setItem('currentStoreId', selectedStore.id);
+        }
+
+        setCurrentStore(selectedStore);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error processing stores data:', error);
+        setLoading(false);
       }
-
-      if (!selectedStore && storesData.length > 0) {
-        selectedStore = storesData[0];
+    }, (error) => {
+      clearTimeout(loadingTimeout); // Clear timeout on error
+      console.error('Firestore error, using fallback mode:', error);
+      
+      // Enhanced error handling based on error type
+      if (error.code === 'permission-denied') {
+        console.log('Permission denied - using localStorage fallback');
+      } else if (error.code === 'unavailable') {
+        console.log('Firestore unavailable - using localStorage fallback');
+      } else {
+        console.log('Unknown Firestore error - using localStorage fallback');
       }
-
-      setCurrentStore(selectedStore);
+      
+      // Fallback: Try to load from localStorage
+      const tempStoreData = localStorage.getItem('tempStore');
+      if (tempStoreData) {
+        try {
+          const tempStore = JSON.parse(tempStoreData);
+          if (tempStore.userId === currentUser.uid) {
+            setStores([tempStore]);
+            setCurrentStore(tempStore);
+            console.log('Using temporary store from localStorage:', tempStore);
+          }
+        } catch (error) {
+          console.error('Error parsing temporary store data:', error);
+          localStorage.removeItem('tempStore');
+        }
+      } else {
+        // No stores available
+        setStores([]);
+        setCurrentStore(null);
+      }
+      
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(loadingTimeout); // Clear timeout on cleanup
+      unsubscribe();
+    };
   }, [currentUser]);
 
   // Switch to different store

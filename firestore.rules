@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Allow users to read and write their own stores
+    match /stores/{storeId} {
+      allow read, write: if isAuthenticated() && (
+        !exists(/databases/$(database)/documents/stores/$(storeId)) ||
+        isOwner(resource.data.userId)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Allow users to read and write their own products
+    match /products/{productId} {
+      allow read, write: if isAuthenticated() && (
+        !exists(/databases/$(database)/documents/products/$(productId)) ||
+        isOwner(resource.data.userId)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Allow users to read and write their own transactions
+    match /transactions/{transactionId} {
+      allow read, write: if isAuthenticated() && (
+        !exists(/databases/$(database)/documents/transactions/$(transactionId)) ||
+        isOwner(resource.data.userId)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Allow users to read and write their own collective orders
+    match /collectiveOrders/{orderId} {
+      allow read, write: if isAuthenticated() && (
+        !exists(/databases/$(database)/documents/collectiveOrders/$(orderId)) ||
+        isOwner(resource.data.userId)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Allow users to read and write their own sales
+    match /sales/{saleId} {
+      allow read, write: if isAuthenticated() && (
+        !exists(/databases/$(database)/documents/sales/$(saleId)) ||
+        isOwner(resource.data.userId)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+    
+    // Test collection for debugging (can be removed in production)
+    match /test/{testId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Note: 'sales' collection rules are already covered by the existing 'sales' match above
+  }
+}

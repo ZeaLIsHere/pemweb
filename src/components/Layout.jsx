@@ -1,12 +1,20 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useStore } from '../contexts/StoreContext';
 import BottomNavigation from './BottomNavigation';
 import TopBar from './TopBar';
 import NotificationSystem from './NotificationSystem';
+import LoadingStoreIndicator from './LoadingStoreIndicator';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const { loading } = useStore();
+
+  // Show loading indicator if stores are still loading
+  if (loading) {
+    return <LoadingStoreIndicator isLoading={true} />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

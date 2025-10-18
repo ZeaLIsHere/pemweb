@@ -19,18 +19,22 @@ export default function CollectiveQuantityModal({
   onConfirm 
 }) {
   const [quantities, setQuantities] = useState({});
+  const [updateTypes, setUpdateTypes] = useState({}); // 'manual' or 'batch'
   const [loading, setLoading] = useState(false);
 
-  // Initialize quantities when modal opens
+  // Initialize quantities and update types when modal opens
   React.useEffect(() => {
     if (isOpen && store) {
       const initialQuantities = {};
+      const initialUpdateTypes = {};
       store.restockNeeds.forEach(product => {
         if (selectedProducts[`${store.id}-${product.productName}`]) {
           initialQuantities[product.productName] = 1; // Default quantity
+          initialUpdateTypes[product.productName] = 'manual'; // Default to manual
         }
       });
       setQuantities(initialQuantities);
+      setUpdateTypes(initialUpdateTypes);
     }
   }, [isOpen, store, selectedProducts]);
 
@@ -57,20 +61,48 @@ export default function CollectiveQuantityModal({
     }));
   };
 
+  const setUpdateType = (productName, type) => {
+    setUpdateTypes(prev => ({
+      ...prev,
+      [productName]: type
+    }));
+    
+    // Reset quantity to 1 when changing type
+    setQuantities(prev => ({
+      ...prev,
+      [productName]: 1
+    }));
+  };
+
+  // Get batch size for a product (mock data for demo)
+  const getBatchSize = (productName) => {
+    const batchSizes = {
+      'Mie Instan': 24,
+      'Teh Botol': 12,
+      'Beras Premium': 25,
+      'Minyak Goreng': 6
+    };
+    return batchSizes[productName] || 12; // Default batch size
+  };
+
   const calculateTotal = () => {
     return selectedItems.reduce((total, product) => {
       const qty = quantities[product.productName] || 1;
+      const updateType = updateTypes[product.productName] || 'manual';
+      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
       const bulkPrice = product.estimatedPrice * 0.8; // 20% discount for bulk
-      return total + (bulkPrice * qty);
+      return total + (bulkPrice * actualQty);
     }, 0);
   };
 
   const calculateSavings = () => {
     return selectedItems.reduce((savings, product) => {
       const qty = quantities[product.productName] || 1;
+      const updateType = updateTypes[product.productName] || 'manual';
+      const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
       const regularPrice = product.estimatedPrice;
       const bulkPrice = regularPrice * 0.8;
-      return savings + ((regularPrice - bulkPrice) * qty);
+      return savings + ((regularPrice - bulkPrice) * actualQty);
     }, 0);
   };
 
@@ -80,12 +112,21 @@ export default function CollectiveQuantityModal({
     const orderData = {
       storeId: store.id,
       storeName: store.name,
-      items: selectedItems.map(product => ({
-        ...product,
-        quantity: quantities[product.productName] || 1,
-        bulkPrice: product.estimatedPrice * 0.8,
-        totalPrice: (product.estimatedPrice * 0.8) * (quantities[product.productName] || 1)
-      })),
+      items: selectedItems.map(product => {
+        const qty = quantities[product.productName] || 1;
+        const updateType = updateTypes[product.productName] || 'manual';
+        const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
+        
+        return {
+          ...product,
+          quantity: actualQty, // Actual quantity for inventory
+          inputQuantity: qty, // User input quantity
+          updateType: updateType,
+          batchSize: updateType === 'batch' ? getBatchSize(product.productName) : 1,
+          bulkPrice: product.estimatedPrice * 0.8,
+          totalPrice: (product.estimatedPrice * 0.8) * actualQty
+        };
+      }),
       totalAmount: calculateTotal(),
       totalSavings: calculateSavings(),
       orderDate: new Date(),
@@ -184,9 +225,59 @@ export default function CollectiveQuantityModal({
                           </div>
                         </div>
 
+                        {/* Update Type Selector */}
+                        <div className="mb-3">
+                          <span className="text-sm font-medium text-gray-700 mb-2 block">Cara Menambah Stok:</span>
+                          <div className={`grid gap-2 ${getBatchSize(product.productName) > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            <button
+                              type="button"
+                              onClick={() => setUpdateType(product.productName, 'manual')}
+                              className={`p-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                                updateTypes[product.productName] === 'manual'
+                                  ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex flex-col items-center space-y-1">
+                                <div className={`w-3 h-3 rounded-full border-2 ${
+                                  updateTypes[product.productName] === 'manual' ? 'border-primary bg-primary' : 'border-gray-300'
+                                }`}></div>
+                                <div className="text-center">
+                                  <div className="font-semibold">Manual</div>
+                                  <div className="text-xs opacity-75">Per satuan</div>
+                                </div>
+                              </div>
+                            </button>
+
+                            {getBatchSize(product.productName) > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setUpdateType(product.productName, 'batch')}
+                                className={`p-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                                  updateTypes[product.productName] === 'batch'
+                                    ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center space-y-1">
+                                  <div className={`w-3 h-3 rounded-full border-2 ${
+                                    updateTypes[product.productName] === 'batch' ? 'border-primary bg-primary' : 'border-gray-300'
+                                  }`}></div>
+                                  <div className="text-center">
+                                    <div className="font-semibold">Per Batch</div>
+                                    <div className="text-xs opacity-75">{getBatchSize(product.productName)} unit</div>
+                                  </div>
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Quantity Selector */}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">Quantity:</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            {updateTypes[product.productName] === 'batch' ? 'Jumlah Batch:' : 'Quantity:'}
+                          </span>
                           <div className="flex items-center space-x-3">
                             <button
                               onClick={() => updateQuantity(product.productName, -1)}
@@ -212,14 +303,33 @@ export default function CollectiveQuantityModal({
                           </div>
                         </div>
 
+                        {/* Batch Info */}
+                        {updateTypes[product.productName] === 'batch' && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs text-blue-700">
+                              💡 <strong>{quantities[product.productName] || 1} batch</strong> = <strong>{(quantities[product.productName] || 1) * getBatchSize(product.productName)} unit</strong> total
+                            </p>
+                          </div>
+                        )}
+
                         {/* Subtotal */}
                         <div className="mt-3 pt-3 border-t border-gray-200">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Subtotal:</span>
                             <span className="font-semibold text-gray-800">
-                              Rp {((product.estimatedPrice * 0.8) * (quantities[product.productName] || 1)).toLocaleString('id-ID')}
+                              Rp {(() => {
+                                const qty = quantities[product.productName] || 1;
+                                const updateType = updateTypes[product.productName] || 'manual';
+                                const actualQty = updateType === 'batch' ? qty * getBatchSize(product.productName) : qty;
+                                return ((product.estimatedPrice * 0.8) * actualQty).toLocaleString('id-ID');
+                              })()}
                             </span>
                           </div>
+                          {updateTypes[product.productName] === 'batch' && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {quantities[product.productName] || 1} batch × {getBatchSize(product.productName)} unit × Rp {(product.estimatedPrice * 0.8).toLocaleString('id-ID')}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -268,6 +378,8 @@ export default function CollectiveQuantityModal({
                         <li>• 💰 Harga sudah termasuk diskon bulk purchase 20%</li>
                         <li>• 🧾 Transaksi tercatat sebagai pembelian kolektif</li>
                         <li>• 🏪 Produk baru akan dibuat jika belum ada di inventory</li>
+                        <li>• 📊 Pilih "Per Batch" untuk pembelian dalam jumlah besar</li>
+                        <li>• 🔢 Mode batch otomatis menghitung total unit berdasarkan ukuran batch</li>
                       </ul>
                     </div>
                   </div>

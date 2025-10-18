@@ -6,6 +6,7 @@ import { collection, query, where, onSnapshot, updateDoc, doc, deleteDoc } from 
 import { Package, Plus, Edit3, Trash2, AlertTriangle, Search } from 'lucide-react';
 import StockUpdateModal from '../components/StockUpdateModal';
 import EditProductModal from '../components/EditProductModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 export default function Stock() {
   const { currentUser } = useAuth();
@@ -16,6 +17,9 @@ export default function Stock() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showStockModal, setShowStockModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -26,17 +30,30 @@ export default function Stock() {
     );
 
     const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
-      const productsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Sort by stock level (low stock first)
-      productsData.sort((a, b) => a.stok - b.stok);
-      
-      setProducts(productsData);
-      setFilteredProducts(productsData);
+      try {
+        const productsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Sort by stock level (low stock first)
+        productsData.sort((a, b) => (a.stok || 0) - (b.stok || 0));
+        
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error processing products data:', error);
+        setLoading(false);
+      }
+    }, (error) => {
+      console.error('Error fetching products:', error);
       setLoading(false);
+      
+      // Show user-friendly error message
+      if (error.code === 'permission-denied') {
+        console.log('Permission denied for products collection');
+      }
     });
 
     return unsubscribe;
@@ -64,15 +81,39 @@ export default function Stock() {
     setShowEditModal(true);
   };
 
-  const handleDeleteProduct = async (product) => {
-    if (window.confirm(`Yakin ingin menghapus ${product.nama}?`)) {
-      try {
-        await deleteDoc(doc(db, 'products', product.id));
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        alert('Gagal menghapus produk');
-      }
+  const handleDeleteProduct = (product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      await deleteDoc(doc(db, 'products', productToDelete.id));
+      
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      
+      // Optional: Show success message
+      // You can add a toast notification here instead of alert
+      setTimeout(() => {
+        alert(`✅ Produk "${productToDelete.nama}" berhasil dihapus dari sistem.`);
+      }, 300);
+      
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('❌ Gagal menghapus produk. Silakan coba lagi.');
     }
+    
+    setDeleteLoading(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setProductToDelete(null);
   };
 
   const getStockStatus = (stock) => {
@@ -98,7 +139,7 @@ export default function Stock() {
         <p className="text-gray-600">Kelola stok produk Anda</p>
       </div>
 
-      {/* Search */}
+      {/* Search - Mobile Optimized */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <input
@@ -106,7 +147,7 @@ export default function Stock() {
           placeholder="Cari produk atau kategori..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full pl-10 pr-4 py-4 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-sm"
         />
       </div>
 
@@ -175,55 +216,78 @@ export default function Stock() {
                 transition={{ delay: index * 0.05 }}
                 className="card"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-semibold text-secondary">{product.nama}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>
+                {/* Mobile-First Layout */}
+                <div className="space-y-4">
+                  {/* Header with name and status */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-secondary text-lg mb-1">{product.nama}</h3>
+                      <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${stockStatus.color}`}>
                         {stockStatus.label}
                       </span>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Harga: <span className="font-medium text-primary">Rp {product.harga.toLocaleString('id-ID')}</span></p>
-                        <p className="text-gray-600">Kategori: <span className="font-medium">{product.kategori || 'Umum'}</span></p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Stok: <span className="font-bold">{product.stok} {product.satuan}</span></p>
-                        {product.batchSize > 1 && (
-                          <p className="text-gray-600">Batch: <span className="font-medium">{product.batchSize} {product.satuan}</span></p>
-                        )}
-                      </div>
+                  </div>
+                  
+                  {/* Product Info - Stacked for mobile */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 text-sm">Stok Tersedia</span>
+                      <span className="font-bold text-lg text-secondary">{product.stok} {product.satuan}</span>
                     </div>
+                    
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 text-sm">Harga Satuan</span>
+                      <span className="font-semibold text-primary">Rp {product.harga.toLocaleString('id-ID')}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 text-sm">Kategori</span>
+                      <span className="font-medium text-gray-800">{product.kategori || 'Umum'}</span>
+                    </div>
+                    
+                    {product.batchSize > 1 && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600 text-sm">Ukuran Batch</span>
+                        <span className="font-medium text-gray-800">{product.batchSize} {product.satuan}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  {/* Action Buttons - Full width for mobile */}
+                  <div className="flex gap-3 pt-2">
+                    {/* Edit Produk - Smaller button */}
                     <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleStockUpdate(product)}
-                      className="p-2 bg-primary text-white rounded-lg"
-                    >
-                      <Plus size={16} />
-                    </motion.button>
-                    
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleEditProduct(product)}
-                      className="p-2 bg-blue-500 text-white rounded-lg"
+                      className="flex items-center justify-center space-x-1 bg-blue-500 text-white py-2 px-3 rounded-lg font-medium text-xs shadow-sm"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} />
+                      <span>Edit</span>
                     </motion.button>
                     
+                    {/* Tambah Stok - Larger dominant button */}
                     <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleStockUpdate(product)}
+                      className="flex-1 flex items-center justify-center space-x-2 bg-primary text-white py-3 px-4 rounded-xl font-semibold text-sm shadow-sm"
+                    >
+                      <Plus size={20} />
+                      <span>Tambah Stok</span>
+                    </motion.button>
+                  </div>
+                  
+                  {/* Delete Button - Separate row for safety */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleDeleteProduct(product)}
-                      className="p-2 bg-red-500 text-white rounded-lg"
+                      className="w-full flex items-center justify-center space-x-2 bg-red-50 text-red-600 py-2 px-4 rounded-lg font-medium text-sm border border-red-200 hover:bg-red-100 transition-colors"
                     >
                       <Trash2 size={16} />
+                      <span>Hapus Produk</span>
                     </motion.button>
                   </div>
                 </div>
@@ -255,6 +319,15 @@ export default function Stock() {
           />
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        onConfirm={confirmDeleteProduct}
+        product={productToDelete}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

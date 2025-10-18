@@ -61,140 +61,189 @@ export default function StockUpdateModal({ product, onClose }) {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col"
+          className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col m-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-6">
+          {/* Header - Mobile Optimized */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
+              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+                <Package className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-secondary">Update Stok</h2>
-                <p className="text-sm text-gray-600">{product.nama}</p>
+                <p className="text-sm text-gray-600 truncate max-w-48">{product.nama}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-3 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
 
-          {/* Current Stock Info */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Stok Saat Ini</p>
-                <p className="text-lg font-bold text-secondary">{product.stok} {product.satuan}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Harga Satuan</p>
-                <p className="text-lg font-bold text-primary">Rp {product.harga.toLocaleString('id-ID')}</p>
-              </div>
-            </div>
-            {product.batchSize > 1 && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-gray-600 text-sm">Ukuran Batch: <span className="font-medium">{product.batchSize} {product.satuan}</span></p>
-              </div>
-            )}
-          </div>
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Update Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Cara Menambah Stok
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setUpdateType('manual')}
-                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                    updateType === 'manual'
-                      ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  Manual
-                </button>
+            {/* Current Stock Info - Mobile Optimized */}
+            <div className="bg-gradient-to-r from-blue-50 to-primary/5 rounded-xl p-5 mb-6 border border-blue-100">
+              <h3 className="font-semibold text-gray-800 mb-4">Informasi Produk</h3>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-blue-100">
+                  <span className="text-gray-600 font-medium">Stok Saat Ini</span>
+                  <span className="text-2xl font-bold text-secondary">{product.stok} {product.satuan}</span>
+                </div>
+                
+                <div className="flex justify-between items-center py-3 border-b border-blue-100">
+                  <span className="text-gray-600 font-medium">Harga Satuan</span>
+                  <span className="text-lg font-bold text-primary">Rp {product.harga.toLocaleString('id-ID')}</span>
+                </div>
+                
                 {product.batchSize > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setUpdateType('batch')}
-                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                      updateType === 'batch'
-                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    Per Batch
-                  </button>
+                  <div className="flex justify-between items-center py-3">
+                    <span className="text-gray-600 font-medium">Ukuran Batch</span>
+                    <span className="text-lg font-semibold text-gray-800">{product.batchSize} {product.satuan}</span>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Quantity Input */}
-            {updateType === 'manual' ? (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Update Type Selection - Side by Side Layout */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Jumlah Tambahan ({product.satuan})
+                <label className="block text-base font-semibold text-gray-800 mb-4">
+                  Cara Menambah Stok
                 </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="input-field"
-                  placeholder="Masukkan jumlah"
-                />
+                <div className={`grid gap-3 ${product.batchSize > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setUpdateType('manual')}
+                    className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      updateType === 'manual'
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary shadow-sm'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        updateType === 'manual' ? 'border-primary bg-primary' : 'border-gray-300'
+                      }`}></div>
+                      <div className="text-center">
+                        <div className="font-semibold">Manual</div>
+                        <div className="text-xs opacity-75">Per satuan</div>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {product.batchSize > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setUpdateType('batch')}
+                      className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                        updateType === 'batch'
+                          ? 'border-primary bg-primary bg-opacity-10 text-primary shadow-sm'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          updateType === 'batch' ? 'border-primary bg-primary' : 'border-gray-300'
+                        }`}></div>
+                        <div className="text-center">
+                          <div className="font-semibold">Per Batch</div>
+                          <div className="text-xs opacity-75">{product.batchSize} {product.satuan}</div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Jumlah Batch (1 batch = {product.batchSize} {product.satuan})
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={batchCount}
-                  onChange={(e) => setBatchCount(e.target.value)}
-                  className="input-field"
-                  placeholder="Masukkan jumlah batch"
-                />
-              </div>
-            )}
 
-            {/* Preview */}
-            {((updateType === 'manual' && quantity) || (updateType === 'batch' && batchCount)) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
-                  Stok setelah update: <span className="font-bold">{getPreviewStock()} {product.satuan}</span>
-                </p>
-              </div>
-            )}
+              {/* Quantity Input - Mobile Optimized */}
+              {updateType === 'manual' ? (
+                <div>
+                  <label className="block text-base font-semibold text-gray-800 mb-3">
+                    Jumlah Tambahan ({product.satuan})
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                    placeholder="Masukkan jumlah"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-base font-semibold text-gray-800 mb-3">
+                    Jumlah Batch
+                  </label>
+                  <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-700">
+                      💡 1 batch = {product.batchSize} {product.satuan}
+                    </p>
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={batchCount}
+                    onChange={(e) => setBatchCount(e.target.value)}
+                    className="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                    placeholder="Masukkan jumlah batch"
+                  />
+                </div>
+              )}
 
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 btn-secondary"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={loading || (!quantity && !batchCount)}
-                className="flex-1 btn-primary flex items-center justify-center space-x-2"
-              >
-                <Plus size={16} />
-                <span>{loading ? 'Menyimpan...' : 'Update Stok'}</span>
-              </button>
-            </div>
-          </form>
+              {/* Preview - Enhanced for Mobile */}
+              {((updateType === 'manual' && quantity) || (updateType === 'batch' && batchCount)) && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-green-600" />
+                    </div>
+                    <span className="font-semibold text-green-800">Preview Stok</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-700">Stok setelah update:</span>
+                    <span className="text-2xl font-bold text-green-800">{getPreviewStock()} {product.satuan}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Footer Buttons - Mobile Optimized */}
+              <div className="grid grid-cols-2 gap-4 pt-6">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="py-4 px-6 bg-gray-100 text-gray-700 rounded-xl font-semibold text-base hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || (!quantity && !batchCount)}
+                  className="py-4 px-6 bg-primary text-white rounded-xl font-semibold text-base hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={20} />
+                      <span>Update Stok</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

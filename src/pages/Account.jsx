@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useStore } from '../contexts/StoreContext';
 import { 
   User, 
   Mail, 
@@ -11,11 +12,16 @@ import {
   Calendar,
   Shield,
   Check,
-  X
+  X,
+  Store,
+  MapPin,
+  Phone,
+  Building
 } from 'lucide-react';
 
 export default function Account() {
   const { currentUser, changePassword } = useAuth();
+  const { currentStore, stores } = useStore();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -160,11 +166,148 @@ export default function Account() {
         </div>
       </motion.div>
 
+      {/* Store Information */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="card"
+      >
+        <div className="flex items-center space-x-4 mb-6">
+          <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+            <Store className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-secondary">Informasi Toko</h2>
+            <p className="text-gray-600">Detail toko yang sedang aktif</p>
+          </div>
+        </div>
+
+        {currentStore ? (
+          <div className="space-y-4">
+            {/* Offline Mode Indicator */}
+            {currentStore.isTemporary && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                  <p className="text-sm font-medium text-amber-800">Mode Offline</p>
+                </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  Data toko disimpan secara lokal. Akan disinkronkan ketika Firestore tersedia.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+              <Store className="w-5 h-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-600">Nama Toko</p>
+                <p className="font-medium text-secondary">{currentStore.storeName}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+              <User className="w-5 h-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-600">Nama Pemilik</p>
+                <p className="font-medium text-secondary">{currentStore.ownerName}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <MapPin className="w-5 h-5 text-gray-500 mt-0.5" />
+              <div>
+                <p className="text-sm text-gray-600">Alamat Toko</p>
+                <p className="font-medium text-secondary">{currentStore.address}</p>
+              </div>
+            </div>
+
+            {currentStore.phone && (
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <Phone className="w-5 h-5 text-gray-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Nomor Telepon</p>
+                  <p className="font-medium text-secondary">{currentStore.phone}</p>
+                </div>
+              </div>
+            )}
+
+            {currentStore.email && (
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <Mail className="w-5 h-5 text-gray-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Email Toko</p>
+                  <p className="font-medium text-secondary">{currentStore.email}</p>
+                </div>
+              </div>
+            )}
+
+            {currentStore.description && (
+              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <Building className="w-5 h-5 text-gray-500 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-600">Deskripsi Toko</p>
+                  <p className="font-medium text-secondary">{currentStore.description}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+              <Calendar className="w-5 h-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-600">Toko Dibuat</p>
+                <p className="font-medium text-secondary">
+                  {formatDate(currentStore.createdAt?.toDate?.() || currentStore.createdAt)}
+                </p>
+              </div>
+            </div>
+
+            {/* Store Stats */}
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <p className="text-2xl font-bold text-blue-600">{currentStore.totalProducts || 0}</p>
+                <p className="text-sm text-blue-700">Produk</p>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <p className="text-2xl font-bold text-green-600">{currentStore.totalSales || 0}</p>
+                <p className="text-sm text-green-700">Penjualan</p>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <p className="text-2xl font-bold text-purple-600">
+                  Rp {(currentStore.totalRevenue || 0).toLocaleString('id-ID')}
+                </p>
+                <p className="text-sm text-purple-700">Pendapatan</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Store className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-500 mb-2">Belum Ada Toko</h3>
+            <p className="text-gray-400 mb-4">Anda belum memiliki toko yang terdaftar</p>
+            <button className="btn-primary">
+              Buat Toko Pertama
+            </button>
+          </div>
+        )}
+
+        {/* Multiple Stores Info */}
+        {stores.length > 1 && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>💡 Info:</strong> Anda memiliki {stores.length} toko terdaftar. 
+              Toko yang sedang aktif: <strong>{currentStore?.storeName}</strong>. 
+              Anda dapat beralih toko di menu Pengaturan.
+            </p>
+          </div>
+        )}
+      </motion.div>
+
       {/* Change Password */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         className="card"
       >
         <div className="flex items-center space-x-3 mb-6">
@@ -319,7 +462,7 @@ export default function Account() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.4 }}
         className="card bg-blue-50 border-blue-200"
       >
         <div className="flex items-start space-x-3">

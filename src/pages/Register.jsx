@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, Store } from 'lucide-react';
+import StoreSetupModal from '../components/StoreSetupModal';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,8 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showStoreSetup, setShowStoreSetup] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -29,13 +32,23 @@ export default function Register() {
       setError('');
       setLoading(true);
       await signup(email, password);
-      navigate('/');
+      
+      // Store email for store setup
+      setRegisteredEmail(email);
+      
+      // Show store setup modal instead of navigating
+      setShowStoreSetup(true);
+      setLoading(false);
     } catch (error) {
       setError('Gagal membuat akun. Email mungkin sudah digunakan.');
+      setLoading(false);
     }
-
-    setLoading(false);
   }
+
+  const handleStoreSetupComplete = () => {
+    setShowStoreSetup(false);
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-accent flex items-center justify-center p-4">
@@ -50,8 +63,8 @@ export default function Register() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
               <Store className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-secondary mb-2">Daftar Akun</h1>
-            <p className="text-gray-600">Mulai kelola bisnis Anda</p>
+            <h1 className="text-2xl font-bold text-secondary mb-2">Daftar Akun Baru</h1>
+            <p className="text-gray-600">Buat akun dan setup toko untuk memulai bisnis</p>
           </div>
 
           {error && (
@@ -126,7 +139,7 @@ export default function Register() {
               type="submit"
               className="w-full btn-primary"
             >
-              {loading ? 'Mendaftar...' : 'Daftar'}
+              {loading ? 'Mendaftar...' : 'Daftar & Setup Toko'}
             </motion.button>
           </form>
 
@@ -140,6 +153,13 @@ export default function Register() {
           </div>
         </div>
       </motion.div>
+
+      {/* Store Setup Modal */}
+      <StoreSetupModal
+        isOpen={showStoreSetup}
+        onComplete={handleStoreSetupComplete}
+        userEmail={registeredEmail}
+      />
     </div>
   );
 }

@@ -23,51 +23,137 @@ export default function TodayRevenue() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Get today's date range
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const salesQuery = query(
+    // Get all transactions from both collections for the user first, then filter on client side
+    // This avoids issues with Firestore timestamp queries
+    const transactionsQuery = query(
       collection(db, 'transactions'),
-      where('userId', '==', currentUser.uid),
-      where('timestamp', '>=', today),
-      where('timestamp', '<', tomorrow)
+      where('userId', '==', currentUser.uid)
     );
 
-    const unsubscribe = onSnapshot(salesQuery, (snapshot) => {
+    const salesQuery = query(
+      collection(db, 'sales'),
+      where('userId', '==', currentUser.uid)
+    );
+
+    let allTransactions = [];
+    let loadedCollections = 0;
+    const totalCollections = 2;
+
+    const processData = () => {
+      if (loadedCollections < totalCollections) return;
+
       try {
-        const salesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        // Filter for today's transactions on client side
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
         
-        // Sort by timestamp descending (newest first) on client-side
-        salesData.sort((a, b) => {
-          const dateA = a.timestamp?.toDate() || new Date(a.timestamp);
-          const dateB = b.timestamp?.toDate() || new Date(b.timestamp);
+        const todaysSalesData = allTransactions.filter(sale => {
+          if (!sale.timestamp && !sale.createdAt) return false;
+          
+          // Try both timestamp and createdAt fields
+          const saleTimestamp = sale.timestamp || sale.createdAt;
+          let saleDate;
+          
+          if (saleTimestamp?.toDate) {
+            // Firestore Timestamp
+            saleDate = saleTimestamp.toDate();
+          } else if (saleTimestamp instanceof Date) {
+            // JavaScript Date
+            saleDate = saleTimestamp;
+          } else if (typeof saleTimestamp === 'string') {
+            // String date
+            saleDate = new Date(saleTimestamp);
+          } else {
+            return false;
+          }
+          
+          return saleDate >= today && saleDate < tomorrow;
+        });
+        
+        // Sort by timestamp descending (newest first)
+        todaysSalesData.sort((a, b) => {
+          const timestampA = a.timestamp || a.createdAt;
+          const timestampB = b.timestamp || b.createdAt;
+          
+          const dateA = timestampA?.toDate ? timestampA.toDate() : new Date(timestampA);
+          const dateB = timestampB?.toDate ? timestampB.toDate() : new Date(timestampB);
+          
           return dateB - dateA;
         });
         
-        setTodaySales(salesData);
+        console.log('All transactions data:', allTransactions);
+        console.log('Today sales data:', todaysSalesData);
+        console.log('Today date range:', { today, tomorrow });
+        
+        setTodaySales(todaysSalesData);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching today sales:', error);
+        console.error('Error processing today sales:', error);
         setTodaySales([]);
         setLoading(false);
       }
+    };
+
+    const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+      try {
+        const transactionsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          source: 'transactions'
+        }));
+        
+        // Replace transactions data
+        allTransactions = allTransactions.filter(item => item.source !== 'transactions');
+        allTransactions = [...allTransactions, ...transactionsData];
+        
+        loadedCollections = Math.max(loadedCollections, 1);
+        processData();
+      } catch (error) {
+        console.error('Error processing transactions:', error);
+        loadedCollections = Math.max(loadedCollections, 1);
+        processData();
+      }
     }, (error) => {
-      console.error('Error in onSnapshot:', error);
-      setTodaySales([]);
-      setLoading(false);
+      console.error('Error in transactions onSnapshot:', error);
+      loadedCollections = Math.max(loadedCollections, 1);
+      processData();
     });
 
-    return unsubscribe;
+    const unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
+      try {
+        const salesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          source: 'sales'
+        }));
+        
+        // Replace sales data
+        allTransactions = allTransactions.filter(item => item.source !== 'sales');
+        allTransactions = [...allTransactions, ...salesData];
+        
+        loadedCollections = Math.max(loadedCollections, 2);
+        processData();
+      } catch (error) {
+        console.error('Error processing sales:', error);
+        loadedCollections = Math.max(loadedCollections, 2);
+        processData();
+      }
+    }, (error) => {
+      console.error('Error in sales onSnapshot:', error);
+      loadedCollections = Math.max(loadedCollections, 2);
+      processData();
+    });
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeSales();
+    };
   }, [currentUser]);
 
   const getTodayTotal = () => {
-    return todaySales.reduce((total, sale) => total + (sale.totalAmount || 0), 0);
+    return todaySales.reduce((total, sale) => total + (sale.totalAmount || sale.price || 0), 0);
   };
 
   const getTotalTransactions = () => {

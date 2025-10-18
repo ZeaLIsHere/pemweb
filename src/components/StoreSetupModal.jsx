@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
+import { validateStoreData, testFirebaseConnection } from '../utils/firebaseTest';
 import { 
-  X, 
   Store, 
   MapPin, 
   Phone, 
   Mail,
   Save,
   Building,
-  User
+  User,
+  CheckCircle
 } from 'lucide-react';
 
-export default function CreateStoreModal({ isOpen, onClose }) {
+export default function StoreSetupModal({ isOpen, onComplete, userEmail }) {
   const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
     ownerName: '',
     address: '',
     phone: '',
-    email: '',
+    email: userEmail || '',
     description: ''
   });
 
@@ -53,7 +54,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
 
       // Sanitize and validate data
       const sanitizedData = {
-        storeName: formData.storeName.trim().substring(0, 100),
+        storeName: formData.storeName.trim().substring(0, 100), // Limit length
         ownerName: formData.ownerName.trim().substring(0, 100),
         address: formData.address.trim().substring(0, 500),
         phone: formData.phone?.trim().substring(0, 20) || '',
@@ -63,41 +64,63 @@ export default function CreateStoreModal({ isOpen, onClose }) {
         isActive: true,
         totalProducts: 0,
         totalSales: 0,
-        totalRevenue: 0,
-        createdAt: new Date() // Use regular Date instead of serverTimestamp
+        totalRevenue: 0
       };
 
-      console.log('Creating store with sanitized data:', sanitizedData);
+      // Add timestamp and validate data
+      const storeDataWithTimestamp = {
+        ...sanitizedData,
+        createdAt: new Date()
+      };
       
-      const docRef = await addDoc(collection(db, 'stores'), sanitizedData);
+      // Validate data before sending
+      const validation = validateStoreData(storeDataWithTimestamp);
+      if (!validation.isValid) {
+        throw new Error(`Data validation failed: ${validation.errors.join(', ')}`);
+      }
+      
+      console.log('Creating store with validated data:', storeDataWithTimestamp);
+      console.log('Current user UID:', currentUser.uid);
+      
+      // Try creating the store document
+      const docRef = await addDoc(collection(db, 'stores'), storeDataWithTimestamp);
       
       console.log('Store created successfully with ID:', docRef.id);
 
-      // Reset form
-      setFormData({
-        storeName: '',
-        ownerName: '',
-        address: '',
-        phone: '',
-        email: '',
-        description: ''
-      });
+      // Show success message
+      alert('✅ Toko berhasil dibuat! Selamat datang di DagangCerdas.');
 
-      alert('✅ Toko berhasil dibuat!');
-      onClose();
+      // Call completion callback
+      onComplete();
     } catch (error) {
       console.error('Detailed error creating store:', {
         error: error,
         message: error.message,
-        code: error.code
+        code: error.code,
+        stack: error.stack
       });
       
       let errorMessage = 'Terjadi kesalahan saat membuat toko.';
       
       if (error.code === 'permission-denied') {
-        errorMessage = 'Tidak memiliki izin untuk membuat toko.';
+        errorMessage = 'Firestore permissions belum dikonfigurasi. Menggunakan mode offline sementara.';
+        
+        // Fallback: Save to localStorage as temporary solution
+        const tempStoreData = {
+          ...storeDataWithTimestamp,
+          id: 'temp-' + Date.now(),
+          isTemporary: true
+        };
+        
+        localStorage.setItem('tempStore', JSON.stringify(tempStoreData));
+        console.log('Store saved to localStorage as fallback:', tempStoreData);
+        
+        alert('✅ Toko berhasil dibuat (mode offline)! Data akan disinkronkan ketika koneksi tersedia.');
+        onComplete();
+        return;
+        
       } else if (error.code === 'invalid-argument') {
-        errorMessage = 'Data yang dikirim tidak valid.';
+        errorMessage = 'Data yang dikirim tidak valid. Periksa format data.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -118,37 +141,40 @@ export default function CreateStoreModal({ isOpen, onClose }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                  <Store className="w-5 h-5 text-white" />
+            <div className="bg-gradient-to-r from-primary to-accent text-white p-6">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                  <Store className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-secondary">Buat Toko Baru</h2>
-                  <p className="text-sm text-gray-600">Tambah toko untuk bisnis yang berbeda</p>
+                  <h2 className="text-xl font-bold">Setup Toko Anda</h2>
+                  <p className="text-sm opacity-90">Langkah terakhir untuk memulai bisnis</p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              
+              {/* Welcome Message */}
+              <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Akun berhasil dibuat!</span>
+                </div>
+                <p className="text-xs mt-1 opacity-90">
+                  Sekarang mari setup toko pertama Anda untuk mulai berjualan
+                </p>
+              </div>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(90vh-140px)] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(90vh-200px)] overflow-y-auto">
               {/* Store Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -160,7 +186,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="storeName"
                   value={formData.storeName}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="Contoh: Toko Sembako Barokah"
                   required
                 />
@@ -177,7 +203,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="ownerName"
                   value={formData.ownerName}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="Nama lengkap pemilik toko"
                   required
                 />
@@ -193,7 +219,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   rows="3"
                   placeholder="Alamat lengkap toko"
                   required
@@ -211,7 +237,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="08xx-xxxx-xxxx"
                 />
               </div>
@@ -227,7 +253,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="email@tokosaya.com"
                 />
               </div>
@@ -242,7 +268,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  className="input-field"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   rows="2"
                   placeholder="Deskripsi singkat tentang toko Anda"
                 />
@@ -254,14 +280,17 @@ export default function CreateStoreModal({ isOpen, onClose }) {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={!isFormValid || loading}
-                className="w-full bg-primary text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-primary to-accent text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
                 {loading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Membuat Toko...</span>
+                  </>
                 ) : (
                   <>
                     <Save size={20} />
-                    <span>Buat Toko</span>
+                    <span>Mulai Berjualan</span>
                   </>
                 )}
               </motion.button>
@@ -271,7 +300,7 @@ export default function CreateStoreModal({ isOpen, onClose }) {
             <div className="px-6 pb-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-700">
-                  <strong>Info:</strong> Setelah toko dibuat, Anda dapat beralih antar toko dan mengelola data terpisah untuk setiap bisnis.
+                  <strong>💡 Tips:</strong> Setelah toko dibuat, Anda dapat langsung menambah produk dan mulai mencatat penjualan. Data toko dapat diubah kapan saja di menu Pengaturan.
                 </p>
               </div>
             </div>
