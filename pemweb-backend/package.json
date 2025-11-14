@@ -1,0 +1,17 @@
+{
+  "name": "pemweb-backend",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "midtrans-client": "^1.4.3",
+    "dotenv": "^16.4.5"
+  }
+}
