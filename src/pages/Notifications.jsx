@@ -27,6 +27,20 @@ export default function Notifications() {
   const [highStockProductsState, setHighStockProductsState] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
 
+  // Helper untuk menentukan status stok berdasarkan stok & batchSize
+  const getStockStatus = (product) => {
+    const stok = Number(product.stok) || 0;
+    const batchSize = Number(product.batchSize) || 1;
+
+    // Produk bundling tidak ikut perhitungan stok khusus
+    if (product.isBundle) return "stok_normal";
+
+    if (stok === 0) return "stok_habis";
+    if (stok >= 5 * batchSize) return "stok_berlebih";
+    if (stok <= 0.5 * batchSize) return "stok_menipis";
+    return "stok_normal";
+  };
+
   useEffect(() => {
     markAllAsRead();
   }, [markAllAsRead]);
@@ -70,8 +84,12 @@ export default function Notifications() {
   const notifications = useMemo(() => {
     const notifs = [];
 
-    const outOfStock = products.filter((p) => p.stok === 0);
-    const lowStock = products.filter((p) => p.stok > 0 && p.stok <= 5);
+    const outOfStock = products.filter(
+      (p) => getStockStatus(p) === "stok_habis",
+    );
+    const lowStock = products.filter(
+      (p) => getStockStatus(p) === "stok_menipis",
+    );
 
     outOfStock.forEach((product) => {
       notifs.push({
@@ -171,7 +189,9 @@ export default function Notifications() {
     }
 
     if (products.length > 0) {
-      const highStockProducts = products.filter((p) => p.stok > 50);
+      const highStockProducts = products.filter(
+        (p) => getStockStatus(p) === "stok_berlebih",
+      );
       if (highStockProducts.length > 0) {
         notifs.push({
           id: "high-stock",

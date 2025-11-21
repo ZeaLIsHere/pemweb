@@ -794,7 +794,6 @@ export default function Statistics() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4">
           <motion.div
-            key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -807,7 +806,7 @@ export default function Statistics() {
               <div>
                 <p className="text-sm text-gray-600">Total Pendapatan</p>
                 <p className="text-lg font-bold text-secondary font-mono">
-                  Rp {getTotalRevenue().toLocaleString("id-ID")}
+                  {`Rp ${getTotalRevenue().toLocaleString("id-ID")}`}
                 </p>
               </div>
             </div>
@@ -821,7 +820,7 @@ export default function Statistics() {
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                {card.icon}
+                <BarChart3 className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Transaksi</p>
@@ -830,7 +829,6 @@ export default function Statistics() {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-blue-600">{card.growth} dari bulan lalu</p>
           </motion.div>
 
           <motion.div
@@ -846,7 +844,7 @@ export default function Statistics() {
               <div>
                 <p className="text-sm text-gray-600">Rata-rata/Transaksi</p>
                 <p className="text-lg font-bold text-secondary font-mono">
-                  Rp {getAverageTransaction().toLocaleString("id-ID")}
+                  {`Rp ${getAverageTransaction().toLocaleString("id-ID")}`}
                 </p>
               </div>
             </div>
@@ -867,7 +865,7 @@ export default function Statistics() {
                 <div>
                   <p className="text-sm text-gray-600">Pendapatan Hari Ini</p>
                   <p className="text-lg font-bold text-green-600 font-mono">
-                    Rp {storeStats.todayRevenue.toLocaleString("id-ID")}
+                    {`Rp ${storeStats.todayRevenue.toLocaleString("id-ID")}`}
                   </p>
                 </div>
               </div>
