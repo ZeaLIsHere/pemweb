@@ -34,12 +34,13 @@ export default function ProductGrid ({ products }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="card"
+            className="card flex flex-col h-full"
           >
             {/* Product Info */}
-            <div className="mb-3">
-              <h3 className="font-semibold text-secondary text-sm mb-1 line-clamp-2">
+            <div className="mb-3 flex-1">
+              <h3 className="font-semibold text-secondary text-sm mb-1 line-clamp-2 break-words">
                 {product.nama}
+                {product.originalPrice && product.originalPrice > product.harga && ' (Diskon)'}
               </h3>
               <p className="text-primary font-bold">
                 Rp {product.harga.toLocaleString('id-ID')}

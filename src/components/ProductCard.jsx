@@ -85,6 +85,7 @@ export default function ProductCard ({ product, onSell }) {
             <Package className="w-4 h-4" style={{ color: 'var(--color-text-accent)' }} />
             <h3 className="font-bold text-lg group-hover:text-primary transition-colors" style={{ color: 'var(--color-text-primary)' }}>
               {product.nama}
+              {product.originalPrice && product.originalPrice > product.harga && ' (Diskon)'}
             </h3>
           </div>
           

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
 const NotificationContext = createContext()
 
@@ -46,10 +46,10 @@ export function NotificationProvider ({ children }) {
     ))
   }
 
-  const markAllAsRead = () => {
+  const markAllAsRead = useCallback(() => {
     setNotifications(prev => prev.map(notif => ({ ...notif, read: true })))
     // unreadCount will be auto-calculated by useEffect
-  }
+  }, [])
 
   const clearAllNotifications = () => {
     setNotifications([])

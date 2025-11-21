@@ -23,6 +23,19 @@ export default function Dashboard () {
   const [showAddModal, setShowAddModal] = useState(false)
   const [_insights, _setInsights] = useState(null)
 
+  const getStockStatus = (product) => {
+    const stok = Number(product.stok) || 0
+    const batchSize = Number(product.batchSize) || 1
+
+    // Produk bundling tidak dihitung sebagai stok menipis/berlebih
+    if (product.isBundle) return 'stok_normal'
+
+    if (stok === 0) return 'stok_habis'
+    if (stok >= 5 * batchSize) return 'stok_berlebih'
+    if (stok <= 0.5 * batchSize) return 'stok_menipis'
+    return 'stok_normal'
+  }
+
   useEffect(() => {
     if (!currentUser) return
 
@@ -135,7 +148,8 @@ export default function Dashboard () {
 
   const getTotalProducts = () => products.length
 
-  const getLowStockProducts = () => products.filter(product => product.stok <= 5)
+  const getLowStockProducts = () =>
+    products.filter(product => getStockStatus(product) === 'stok_menipis')
 
   if (loading) {
     return (

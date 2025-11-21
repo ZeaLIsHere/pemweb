@@ -109,10 +109,11 @@ export default function Stock () {
   }
 
   const getStockStatus = (stock) => {
-    if (stock === 0) return { label: 'Habis', color: 'text-red-600 bg-red-50' }
-    if (stock <= 5) return { label: 'Menipis', color: 'text-blue-600 bg-blue-50' } // 🔵 diganti biru
-    if (stock <= 20) return { label: 'Normal', color: 'text-blue-700 bg-blue-100' } // 🔵
-    return { label: 'Banyak', color: 'text-green-600 bg-green-50' }
+    // Warna titik status stok (tanpa teks besar agar tidak keluar dari kartu)
+    if (stock === 0) return { label: 'Habis', dotClass: 'bg-red-500' }
+    if (stock <= 5) return { label: 'Menipis', dotClass: 'bg-blue-500' }
+    if (stock <= 20) return { label: 'Normal', dotClass: 'bg-blue-700' }
+    return { label: 'Banyak', dotClass: 'bg-green-500' }
   }
 
   if (loading) {
@@ -206,17 +207,22 @@ export default function Stock () {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
-                className="card p-3"
+                className="card p-3 flex flex-col h-full"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 pr-2">
-                    <h3 className="font-semibold text-blue-700 text-sm truncate">{product.nama}</h3>
-                    <p className="text-xs text-blue-600 font-bold">Rp {product.harga.toLocaleString('id-ID')}</p>
-                    <p className="text-xs text-gray-500">Stok: {product.stok} {product.satuan}</p>
+                <div className="flex items-start justify-between gap-2 flex-1">
+                  <div className="flex-1 pr-1">
+                    <h3 className="font-semibold text-blue-700 text-xs sm:text-sm leading-snug line-clamp-2 break-words">
+                      {product.nama}
+                    </h3>
+                    <p className="text-xs text-blue-600 font-bold mt-1">Rp {product.harga.toLocaleString('id-ID')}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Stok: {product.stok} {product.satuan}</p>
                   </div>
-                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>
-                    {stockStatus.label}
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span
+                      className={`w-3 h-3 rounded-full ${stockStatus.dotClass}`}
+                      title={stockStatus.label}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 mt-3">

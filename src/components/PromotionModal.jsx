@@ -75,20 +75,31 @@ export default function PromotionModal({
     }
   }, [selectedProductId, type]);
 
-
   const handleSubmit = async () => {
-    // ... (Logika handleSubmit tetap sama)
     setLoading(true);
+
+    if (!selectedProductId) {
+      showError("Mohon pilih produk utama untuk promosi.");
+      setLoading(false);
+      return;
+    }
 
     if (type === "bundle" && !bundleProductId) {
       showError("Mohon pilih produk pendamping untuk promosi bundle.");
       setLoading(false);
       return;
     }
-    
-    // ... sisa logika handleSubmit
-    
-    // START: HANYA UNTUK SIMULASI/LOGIKA LAMA
+
+    const mainProduct = highStockProducts.find(
+      (p) => p.id === selectedProductId,
+    );
+
+    if (!mainProduct) {
+      showError("Produk utama tidak ditemukan.");
+      setLoading(false);
+      return;
+    }
+
     const promotionData = {
       productId: selectedProductId,
       type,
@@ -99,18 +110,64 @@ export default function PromotionModal({
     };
 
     try {
+      // Simpan / update dokumen promosi
       if (initialPromotion) {
-        // Update existing promotion
-        await updateDoc(
-          doc(db, "promotions", initialPromotion.id),
-          promotionData,
-        );
+        await updateDoc(doc(db, "promotions", initialPromotion.id), promotionData);
         showSuccess("Promosi berhasil diperbarui!");
       } else {
-        // Create new promotion
         await addDoc(collection(db, "promotions"), promotionData);
         showSuccess("Promosi baru berhasil dibuat!");
       }
+
+      // Terapkan efek promosi ke koleksi products
+      if (type === "discount") {
+        const originalPrice = mainProduct.originalPrice || mainProduct.harga || 0;
+        const discountedPrice = Math.round(
+          originalPrice * (1 - discountPercent / 100),
+        );
+
+        await updateDoc(doc(db, "products", selectedProductId), {
+          harga: discountedPrice,
+          originalPrice,
+        });
+      } else if (type === "bundle" && bundleProductId) {
+        const bundleProduct = productsToDisplay.find(
+          (p) => p.id === bundleProductId,
+        );
+
+        if (!bundleProduct) {
+          showError("Produk pendamping tidak ditemukan.");
+          setLoading(false);
+          return;
+        }
+
+        const priceA = mainProduct.harga || 0;
+        const priceB = bundleProduct.harga || 0;
+        const basePrice = priceA + priceB;
+        const bundlePrice = Math.round(basePrice * 0.9); // 10% lebih murah dari total
+
+        const bundleStock =
+          Math.min(mainProduct.stok || 0, bundleProduct.stok || 0) || 1;
+
+        const bundleName = `${mainProduct.nama} + ${bundleProduct.nama} (Paket)`;
+
+        await addDoc(collection(db, "products"), {
+          nama: bundleName,
+          harga: bundlePrice,
+          stok: bundleStock,
+          kategori: mainProduct.kategori || "Paket",
+          batchSize: 1,
+          satuan: mainProduct.satuan || "pcs",
+          userId: currentUser.uid,
+          createdAt: new Date(),
+          isBundle: true,
+          bundleMainProductId: selectedProductId,
+          bundleWithProductId: bundleProductId,
+          bundleBasePrice: basePrice,
+          bundleDiscountPercent: 10,
+        });
+      }
+
       onClose();
     } catch (e) {
       console.error("Error creating/updating promotion: ", e);
@@ -118,7 +175,6 @@ export default function PromotionModal({
     } finally {
       setLoading(false);
     }
-    // END: HANYA UNTUK SIMULASI/LOGIKA LAMA
   };
 
   if (!isOpen) return null;
