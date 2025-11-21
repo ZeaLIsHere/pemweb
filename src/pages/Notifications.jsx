@@ -26,7 +26,6 @@ export default function Notifications() {
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [highStockProductsState, setHighStockProductsState] = useState([]);
 
-  // Mark all notifications as read when page is visited
   useEffect(() => {
     markAllAsRead();
   }, [markAllAsRead]);
@@ -98,6 +97,24 @@ export default function Notifications() {
         icon: Package,
         title: "Stok Menipis",
         message: `${product.nama} tinggal ${product.stok} ${product.satuan}`,
+        time: 'Sekarang',
+        priority: 2
+      })
+    })
+
+    return notifs.sort((a, b) => b.priority - a.priority)
+  }, [products, sales, navigate])
+
+  const getNotificationStyle = (type) => {
+    switch (type) {
+      case 'error':
+        return 'border-blue-300 bg-blue-50'
+      case 'warning':
+        return 'border-blue-200 bg-blue-100'
+      case 'success':
+        return 'border-blue-200 bg-blue-50'
+      case 'info':
+        return 'border-blue-200 bg-blue-50'
         time: "Sekarang",
         priority: 2,
         actionable: false, // Tidak ada action untuk stok menipis
@@ -242,7 +259,7 @@ export default function Notifications() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -251,36 +268,39 @@ export default function Notifications() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-secondary mb-2">Notifikasi</h1>
-        <p className="text-gray-600">Pantau status bisnis Anda</p>
+        <h1 className="text-2xl font-bold text-blue-700 mb-2">Notifikasi</h1>
+        <p className="text-blue-500">Pantau status bisnis Anda</p>
       </div>
 
       {/* Notifications Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card text-center">
-          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+            <AlertTriangle className="w-5 h-5 text-blue-600" />
           </div>
-          <p className="text-sm text-gray-600">Stok Habis</p>
-          <p className="text-lg font-bold text-red-600">
-            {notifications.filter((n) => n.type === "error").length}
+          <p className="text-sm text-blue-600">Stok Habis</p>
+          <p className="text-lg font-bold text-blue-700">
+            {notifications.filter(n => n.type === 'error').length}
           </p>
         </div>
 
         <div className="card text-center">
-          <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <Package className="w-5 h-5 text-yellow-600" />
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+            <Package className="w-5 h-5 text-blue-600" />
           </div>
-          <p className="text-sm text-gray-600">Peringatan</p>
-          <p className="text-lg font-bold text-yellow-600">
-            {notifications.filter((n) => n.type === "warning").length}
+          <p className="text-sm text-blue-600">Peringatan</p>
+          <p className="text-lg font-bold text-blue-700">
+            {notifications.filter(n => n.type === 'warning').length}
           </p>
         </div>
 
         <div className="card text-center">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <TrendingUp className="w-5 h-5 text-green-600" />
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
+          <p className="text-sm text-blue-600">Kabar Baik</p>
+          <p className="text-lg font-bold text-blue-700">
+            {notifications.filter(n => n.type === 'success').length}
           <p className="text-sm text-gray-600">Kabar Baik</p>
           <p className="text-lg font-bold text-green-600">
             {notifications.filter((n) => n.type === "success").length}
@@ -291,6 +311,8 @@ export default function Notifications() {
           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
             <Bell className="w-5 h-5 text-blue-600" />
           </div>
+          <p className="text-sm text-blue-600">Total</p>
+          <p className="text-lg font-bold text-blue-700">{notifications.length}</p>
           <p className="text-sm text-gray-600">Total</p>
           <p className="text-lg font-bold text-blue-600">
             {notifications.length}
@@ -335,7 +357,7 @@ export default function Notifications() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-semibold text-secondary text-sm">
+                      <h3 className="font-semibold text-blue-700 text-sm">
                         {notification.title}
                       </h3>
                       <div className="flex items-center space-x-2">
@@ -343,7 +365,7 @@ export default function Notifications() {
                           {notification.time}
                         </span>
                         {notification.actionable && (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronRight className="w-4 h-4 text-blue-400" />
                         )}
                       </div>
                     </div>
@@ -351,7 +373,7 @@ export default function Notifications() {
                       {notification.message}
                     </p>
                     {notification.actionable && (
-                      <p className="text-xs text-blue-600 font-medium">
+                      <p className="text-xs text-blue-700 font-medium">
                         👆 {notification.actionText}
                       </p>
                     )}
@@ -382,7 +404,7 @@ export default function Notifications() {
         (n) => n.type === "error" || n.type === "warning",
       ) && (
         <div className="card">
-          <h3 className="font-semibold text-secondary mb-3 flex items-center">
+          <h3 className="font-semibold text-blue-700 mb-3 flex items-center">
             <Calendar className="w-5 h-5 mr-2" />
             Panduan Tindakan
           </h3>
