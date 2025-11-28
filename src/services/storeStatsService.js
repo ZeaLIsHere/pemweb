@@ -39,6 +39,7 @@ class StoreStatsService {
       await updateDoc(storeRef, {
         totalSales: increment(1),
         totalRevenue: increment(saleData.totalAmount || saleData.price || 0),
+        totalProfit: increment(saleData.totalProfit || 0),
         lastSaleDate: new Date(),
         updatedAt: new Date()
       })
@@ -110,6 +111,14 @@ class StoreStatsService {
         const totalRevenue = sales.reduce((sum, sale) => 
           sum + (sale.price || sale.totalAmount || 0), 0
         )
+        const totalProfit = sales.reduce((sum, sale) => {
+          if (typeof sale.totalProfit === 'number') return sum + sale.totalProfit
+          if (Array.isArray(sale.items)) {
+            const p = sale.items.reduce((s, i) => s + ((i.harga - (i.harga_modal || 0)) * (i.quantity || 1)), 0)
+            return sum + p
+          }
+          return sum
+        }, 0)
 
         // Get today's sales
         const today = new Date()
@@ -122,21 +131,31 @@ class StoreStatsService {
         const todayRevenue = todaySales.reduce((sum, sale) => 
           sum + (sale.price || sale.totalAmount || 0), 0
         )
+        const todayProfit = todaySales.reduce((sum, sale) => {
+          if (typeof sale.totalProfit === 'number') return sum + sale.totalProfit
+          if (Array.isArray(sale.items)) {
+            const p = sale.items.reduce((s, i) => s + ((i.harga - (i.harga_modal || 0)) * (i.quantity || 1)), 0)
+            return sum + p
+          }
+          return sum
+        }, 0)
 
         callback({
           totalSales,
           totalRevenue,
+          totalProfit,
           todaySales: todaySales.length,
           todayRevenue,
+          todayProfit,
           lastUpdated: new Date()
         })
       } catch (error) {
         console.error('Error processing store statistics:', error)
-        callback({ totalSales: 0, totalRevenue: 0, todaySales: 0, todayRevenue: 0 })
+        callback({ totalSales: 0, totalRevenue: 0, totalProfit: 0, todaySales: 0, todayRevenue: 0, todayProfit: 0 })
       }
     }, (error) => {
       console.error('Error fetching store statistics:', error)
-      callback({ totalSales: 0, totalRevenue: 0, todaySales: 0, todayRevenue: 0 })
+      callback({ totalSales: 0, totalRevenue: 0, totalProfit: 0, todaySales: 0, todayRevenue: 0, todayProfit: 0 })
     })
   }
 

@@ -8,6 +8,7 @@ export default function EditProductModal ({ product, onClose }) {
   const [formData, setFormData] = useState({
     nama: product.nama,
     harga: product.harga.toString(),
+    harga_modal: product.harga_modal != null ? product.harga_modal.toString() : '',
     kategori: product.kategori || '',
     batchSize: product.batchSize ? product.batchSize.toString() : '',
     satuan: product.satuan || 'pcs'
@@ -34,6 +35,7 @@ export default function EditProductModal ({ product, onClose }) {
       await updateDoc(doc(db, 'products', product.id), {
         nama: formData.nama,
         harga: parseInt(formData.harga),
+        harga_modal: formData.harga_modal ? parseInt(formData.harga_modal) : 0,
         kategori: formData.kategori || 'Umum',
         batchSize: formData.batchSize ? parseInt(formData.batchSize) : 1,
         satuan: formData.satuan
@@ -110,6 +112,19 @@ export default function EditProductModal ({ product, onClose }) {
                 onChange={handleChange}
                 className="input-field"
                 placeholder="Harga jual"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Harga Modal
+              </label>
+              <input
+                type="number"
+                name="harga_modal"
+                value={formData.harga_modal}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Harga modal"
               />
             </div>
 

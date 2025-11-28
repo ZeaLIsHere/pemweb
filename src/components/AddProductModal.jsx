@@ -10,6 +10,7 @@ export default function AddProductModal ({ onClose, userId }) {
   const [formData, setFormData] = useState({
     nama: '',
     harga: '',
+    harga_modal: '',
     stok: '',
     kategori: '',
     batchSize: '',
@@ -38,6 +39,7 @@ export default function AddProductModal ({ onClose, userId }) {
       await addDoc(collection(db, 'products'), {
         nama: formData.nama,
         harga: parseInt(formData.harga),
+        harga_modal: formData.harga_modal ? parseInt(formData.harga_modal) : 0,
         stok: parseInt(formData.stok),
         kategori: formData.kategori || 'Umum',
         batchSize: formData.batchSize ? parseInt(formData.batchSize) : 1,
@@ -124,6 +126,19 @@ export default function AddProductModal ({ onClose, userId }) {
                   onChange={handleChange}
                   className="input-field"
                   placeholder="5000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Harga Modal
+                </label>
+                <input
+                  type="number"
+                  name="harga_modal"
+                  value={formData.harga_modal}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="4000"
                 />
               </div>
               <div>
