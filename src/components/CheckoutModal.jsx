@@ -478,4 +478,4 @@ export default function CheckoutModal ({ onClose, userId }) {
   )
 }
 
-//ok
+// ok
