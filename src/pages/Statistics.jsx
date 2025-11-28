@@ -41,6 +41,8 @@ const SimplePieChart = ({ data, size = 120 }) => {
     };
   };
 
+  
+
   const createArcPath = (startAngle, endAngle, radius, centerX, centerY) => {
     const start = polarToCartesian(centerX, centerY, radius, endAngle);
     const end = polarToCartesian(centerX, centerY, radius, startAngle);
@@ -114,7 +116,7 @@ export default function Statistics() {
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterPeriod, setFilterPeriod] = useState("today"); // today, week, month, year, custom
+  const [filterPeriod, setFilterPeriod] = useState("all"); // all, today, week, month, year, custom
   const [customDateRange, setCustomDateRange] = useState({
     start: "",
     end: "",
@@ -249,6 +251,8 @@ export default function Statistics() {
       const saleDate = sale.timestamp.toDate();
 
       switch (filterPeriod) {
+        case "all":
+          return true;
         case "today":
           return saleDate >= today;
 
@@ -286,12 +290,19 @@ export default function Statistics() {
 
   const filteredSales = getFilteredSales();
 
+  const getTotalProfit = () => {
+    return filteredSales.reduce((total, sale) => {
+      if (typeof sale.totalProfit === 'number') return total + sale.totalProfit;
+      if (Array.isArray(sale.items)) {
+        const p = sale.items.reduce((s, i) => s + ((i.harga - (i.harga_modal || 0)) * (i.quantity || 1)), 0);
+        return total + p;
+      }
+      return total;
+    }, 0);
+  };
+
   // Calculate statistics - use real-time data from storeStats
   const getTotalRevenue = () => {
-    // Use real-time data from storeStats if available, otherwise fallback to filtered sales
-    if (storeStats.totalRevenue > 0) {
-      return storeStats.totalRevenue;
-    }
     return filteredSales.reduce(
       (total, sale) => total + (sale.price || sale.totalAmount || 0),
       0,
@@ -299,18 +310,10 @@ export default function Statistics() {
   };
 
   const getTotalTransactions = () => {
-    // Use real-time data from storeStats if available, otherwise fallback to filtered sales
-    if (storeStats.totalSales > 0) {
-      return storeStats.totalSales;
-    }
     return filteredSales.length;
   };
 
-  const getAverageTransaction = () => {
-    const total = getTotalRevenue();
-    const count = getTotalTransactions();
-    return count > 0 ? total / count : 0;
-  };
+  
 
   const getTopProducts = () => {
     try {
@@ -442,6 +445,8 @@ export default function Statistics() {
 
   const getPeriodLabel = () => {
     switch (filterPeriod) {
+      case "all":
+        return "Semua";
       case "today":
         return "Hari Ini";
       case "week":
@@ -681,6 +686,7 @@ export default function Statistics() {
             <div className="pt-4 space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
+                  { value: "all", label: "Semua" },
                   { value: "today", label: "Hari Ini" },
                   { value: "week", label: "7 Hari" },
                   { value: "month", label: "Bulan Ini" },
@@ -815,6 +821,25 @@ export default function Statistics() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="card"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Profit</p>
+                <p className="text-lg font-bold text-secondary font-mono">
+                  {`Rp ${getTotalProfit().toLocaleString('id-ID')}`}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="card"
           >
@@ -835,69 +860,6 @@ export default function Statistics() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="card"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Rata-rata/Transaksi</p>
-                <p className="text-lg font-bold text-secondary font-mono">
-                  {`Rp ${getAverageTransaction().toLocaleString("id-ID")}`}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Pendapatan Hari Ini */}
-          {currentStore && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="card"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Pendapatan Hari Ini</p>
-                  <p className="text-lg font-bold text-green-600 font-mono">
-                    {`Rp ${storeStats.todayRevenue.toLocaleString("id-ID")}`}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Transaksi Hari Ini */}
-          {currentStore && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="card"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Transaksi Hari Ini</p>
-                  <p className="text-2xl font-bold text-blue-600 font-mono">
-                    {storeStats.todaySales}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
             className="card"
           >
             <div className="flex items-center space-x-3">
