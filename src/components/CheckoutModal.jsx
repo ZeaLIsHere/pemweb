@@ -135,6 +135,10 @@ export default function CheckoutModal ({ onClose, userId }) {
 
       await Promise.all(updatePromises)
 
+      // Hitung totalCost dan totalProfit berdasarkan harga_modal
+      const totalCost = cart.items.reduce((sum, item) => sum + (item.harga_modal || 0) * item.quantity, 0)
+      const totalProfit = getTotalPrice() - totalCost
+
       // Simpan transaksi ke collection 'sales' untuk konsistensi dengan Dashboard
       await addDoc(collection(db, 'sales'), {
         userId,
@@ -142,11 +146,16 @@ export default function CheckoutModal ({ onClose, userId }) {
           productId: item.id,
           nama: item.nama,
           harga: item.harga,
+          harga_modal: item.harga_modal || 0,
           quantity: item.quantity,
-          subtotal: item.harga * item.quantity
+          subtotal: item.harga * item.quantity,
+          cost: (item.harga_modal || 0) * item.quantity,
+          profit: (item.harga - (item.harga_modal || 0)) * item.quantity
         })),
         price: getTotalPrice(), // Field name konsisten dengan Dashboard
         totalAmount: getTotalPrice(), // Field name konsisten dengan TodayRevenue
+        totalCost,
+        totalProfit,
         totalItems: getTotalItems(),
         paymentMethod,
         timestamp: serverTimestamp(), // Field name konsisten dengan filter
@@ -161,10 +170,15 @@ export default function CheckoutModal ({ onClose, userId }) {
           productId: item.id,
           nama: item.nama,
           harga: item.harga,
+          harga_modal: item.harga_modal || 0,
           quantity: item.quantity,
-          subtotal: item.harga * item.quantity
+          subtotal: item.harga * item.quantity,
+          cost: (item.harga_modal || 0) * item.quantity,
+          profit: (item.harga - (item.harga_modal || 0)) * item.quantity
         })),
         totalAmount: getTotalPrice(),
+        totalCost,
+        totalProfit,
         totalItems: getTotalItems(),
         paymentMethod,
         timestamp: serverTimestamp(),
@@ -176,7 +190,8 @@ export default function CheckoutModal ({ onClose, userId }) {
       if (userId) {
         await storeStatsService.updateStoreStats(userId, {
           totalAmount: getTotalPrice(),
-          price: getTotalPrice()
+          price: getTotalPrice(),
+          totalProfit
         })
       }
 
@@ -417,17 +432,8 @@ export default function CheckoutModal ({ onClose, userId }) {
                 {/* QRIS Code Display */}
                 {paymentMethod === 'qris' && (
                   <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg text-center">
-                    <p className="text-sm text-gray-600 mb-3">Berikan QR Code kepada pembeli untuk melakukan pembayaran</p>
+                    <p className="text-sm text-gray-600 mb-3">Pilih QR Code dan tunjukkan kepada pembeli untuk melakukan pembayaran</p>
                     <div className="flex justify-center">
-                      <img 
-                        src="/qris.jpg" 
-                        alt="QRIS Payment Code" 
-                        className="w-64 h-auto rounded-lg shadow-md"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'block'
-                        }}
-                      />
                       <div className="hidden p-8 bg-gray-100 rounded-lg">
                         <p className="text-gray-500">QR Code tidak tersedia</p>
                       </div>
@@ -479,3 +485,4 @@ export default function CheckoutModal ({ onClose, userId }) {
 }
 
 // ok
+}
